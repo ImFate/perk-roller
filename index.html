@@ -349,40 +349,58 @@
     }
   }
 
-  function rollMany() {
-    const perks = parsePerks(el("perkInput").value);
-    if (!perks.length) { setResult("Add perks in Advanced → Save."); return; }
+function rollMany() {
+  const perks = parsePerks(el("perkInput").value);
+  if (!perks.length) { setResult("Add perks in Advanced → Save."); return; }
 
-    const tiers = normalizeTierMap(perks);
-    const pool = getPool(perks, tiers);
+  const tiers = normalizeTierMap(perks);
+  const pool = getPool(perks, tiers);
 
-    if (!pool.length) { setResult("No perks available (all maxed). Toggle ‘Include maxed perks’ to roll anyway."); return; }
-
-    const n = Math.max(1, Math.min(3, Number(el("rollCount").value || 1)));
-
-    const results = [];
-    const log = loadLog();
-
-    for (let i = 0; i < n; i++) {
-      const picked = weightedPick(pool);
-      const cur = tiers[picked.name] ?? null;
-      const tdisp = tierDisplay(cur, picked.maxTier);
-
-      results.push(`${i+1}) ${picked.name}  —  Tier ${tdisp}`);
-
-      log.push({
-        time: nowString(),
-        perk: picked.name,
-        tierAtRoll: tdisp,
-        weight: picked.weight
-      });
-    }
-
-    saveLog(log);
-    setResult(results.join("\n"));
-    renderLog();
-    renderStats();
+  if (!pool.length) {
+    setResult("No perks available (all maxed). Toggle ‘Include maxed perks’ to roll anyway.");
+    return;
   }
+
+  const nWanted = Math.max(1, Math.min(3, Number(el("rollCount").value || 1)));
+
+  // No duplicates within this click:
+  const tempPool = pool.slice();
+  const n = Math.min(nWanted, tempPool.length);
+
+  const results = [];
+  const log = loadLog();
+
+  for (let i = 0; i < n; i++) {
+    const picked = weightedPick(tempPool);
+
+    // Remove picked perk from tempPool so it can't be picked again in the same roll
+    const idx = tempPool.findIndex(p => p.name === picked.name);
+    if (idx >= 0) tempPool.splice(idx, 1);
+
+    const cur = tiers[picked.name] ?? null;
+    const tdisp = tierDisplay(cur, picked.maxTier);
+
+    results.push(`${i+1}) ${picked.name}  —  Tier ${tdisp}`);
+
+    log.push({
+      time: nowString(),
+      perk: picked.name,
+      tierAtRoll: tdisp,
+      weight: picked.weight
+    });
+  }
+
+  // If user asked for 2/3 but pool is smaller, show a note
+  if (n < nWanted) {
+    results.push(`\n(Only ${n} unique perk(s) available in pool)`);
+  }
+
+  saveLog(log);
+  setResult(results.join("\n"));
+  renderLog();
+  renderStats();
+}
+
 
   function undo() {
     const log = loadLog();
@@ -505,3 +523,4 @@ Momentum Multiplier | 3 | 4`;
 </script>
 </body>
 </html>
+
