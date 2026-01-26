@@ -27,9 +27,10 @@
     .ghost { background:#140607; border-color:#6a1f1f; font-weight:700; }
     .danger { background:#ffb020; border-color:#ffb020; color:#120405; }
     .result {
-      font-size:22px; font-weight:900; padding:14px; border-radius:14px;
+      font-size:18px; font-weight:900; padding:14px; border-radius:14px;
       background:#220808; border:1px solid #ff3b1d; color:#fff2df;
       line-height:1.25;
+      white-space: pre-wrap;
     }
     .muted { color:#ffcfaa; opacity:.85; font-size:12px; }
     .tiny { font-size:11px; opacity:.8; }
@@ -63,6 +64,11 @@
     <!-- EVENT MODE -->
     <div class="card">
       <div class="row">
+        <select id="rollCount" style="flex:0 0 120px;">
+          <option value="1">Roll 1</option>
+          <option value="2">Roll 2</option>
+          <option value="3">Roll 3</option>
+        </select>
         <button class="primary" id="rollBtn" style="flex:2; font-size:18px; padding:14px 14px;">ROLL</button>
         <button class="ghost" id="undoBtn" style="flex:1;">Undo</button>
       </div>
@@ -95,7 +101,7 @@
       </div>
 
       <div class="muted tiny" style="margin-top:8px;">
-        Tip: Use search + tier buttons on the right during live play.
+        Rolling does <b>not</b> change tiers. Use tier buttons on the right to set tiers manually.
       </div>
     </div>
 
@@ -137,7 +143,7 @@
               <th style="width:160px;">Time</th>
               <th style="width:130px;">Team</th>
               <th>Perk</th>
-              <th style="width:90px;">Tier</th>
+              <th style="width:110px;">Tier (at roll)</th>
               <th style="width:80px;">Weight</th>
               <th>Note</th>
             </tr>
@@ -170,7 +176,7 @@
               <button class="danger" id="wipeAllBtn">Wipe everything</button>
             </div>
             <div class="muted tiny" style="margin-top:10px;">
-              Saved in your browser. Export if you want to keep an official record.
+              Saved in your browser. Export if you want a record.
             </div>
           </div>
         </div>
@@ -180,10 +186,9 @@
 </div>
 
 <script>
-  // Storage keys
-  const LS_PERKS = "inferno_perks_v1";
-  const LS_TIERS = "inferno_tiers_v1"; // { name: null|number }
-  const LS_LOG   = "inferno_log_v1";
+  const LS_PERKS = "inferno_perks_v2";
+  const LS_TIERS = "inferno_tiers_v2"; // { name: null|number }
+  const LS_LOG   = "inferno_log_v2";
 
   const el = (id) => document.getElementById(id);
 
@@ -272,6 +277,10 @@
     return tiers;
   }
 
+  function tierDisplay(cur, maxTier) {
+    return (cur === null) ? `None / ${maxTier}` : `${cur} / ${maxTier}`;
+  }
+
   function getPool(perks, tiers) {
     const includeMaxed = el("includeMaxed").checked;
     if (includeMaxed) return perks.slice();
@@ -304,8 +313,6 @@
       if (q && !p.name.toLowerCase().includes(q)) continue;
 
       const tr = document.createElement("tr");
-
-      // Build tier buttons: None + 1..maxTier
       const cur = tiers[p.name]; // null|number
       const btns = [];
 
@@ -322,7 +329,6 @@
       body.appendChild(tr);
     }
 
-    // Click handling
     body.querySelectorAll(".tierBtn").forEach(btn => {
       btn.addEventListener("click", () => {
         const perkName = btn.getAttribute("data-perk");
@@ -351,7 +357,7 @@
         <td>${escapeHtml(e.time)}</td>
         <td>${escapeHtml(e.team || "")}</td>
         <td><b>${escapeHtml(e.perk)}</b></td>
-        <td>${escapeHtml(e.tierDisplay)}</td>
+        <td>${escapeHtml(e.tierAtRoll)}</td>
         <td>${escapeHtml(e.weight)}</td>
         <td>${escapeHtml(e.note || "")}</td>
       `;
@@ -359,7 +365,7 @@
     }
   }
 
-  function roll() {
+  function rollMany() {
     const perks = parsePerks(el("perkInput").value);
     if (!perks.length) { setResult("Add perks in Advanced → Save."); return; }
 
@@ -368,70 +374,44 @@
 
     if (!pool.length) { setResult("No perks available (all maxed). Toggle ‘Include maxed perks’ to roll anyway."); return; }
 
-    const picked = weightedPick(pool);
-
-    // Advance tier if not maxed
-    const cur = tiers[picked.name];
-    const isMaxed = (typeof cur === "number" && cur >= picked.maxTier);
-    let nextTier = cur;
-
-    if (!isMaxed) {
-      nextTier = (cur === null) ? 1 : Math.min(cur + 1, picked.maxTier);
-      tiers[picked.name] = nextTier;
-      saveTiers(tiers);
-    }
-
-    const tierDisplay = (nextTier === null) ? `None / ${picked.maxTier}` : `${nextTier} / ${picked.maxTier}`;
+    const n = Math.max(1, Math.min(3, Number(el("rollCount").value || 1)));
     const team = el("teamSelect").value;
     const note = el("note").value.trim();
 
-    const entry = {
-      time: nowString(),
-      team,
-      note,
-      perk: picked.name,
-      tier: nextTier,
-      tierDisplay,
-      weight: picked.weight,
-      advancedTiered: !isMaxed // whether it actually advanced
-    };
-
+    const results = [];
     const log = loadLog();
-    log.push(entry);
-    saveLog(log);
 
-    setResult(`${picked.name}  —  ${isMaxed ? "MAXED" : "Now"} Tier ${tierDisplay}`);
-    renderPerkTable();
-    renderStats();
+    for (let i = 0; i < n; i++) {
+      const picked = weightedPick(pool);
+      const cur = tiers[picked.name] ?? null;
+      const tdisp = tierDisplay(cur, picked.maxTier);
+
+      results.push(`${i+1}) ${picked.name}  —  Tier ${tdisp}`);
+
+      log.push({
+        time: nowString(),
+        team,
+        note,
+        perk: picked.name,
+        tierAtRoll: tdisp,
+        weight: picked.weight
+      });
+    }
+
+    saveLog(log);
+    setResult(results.join("\n"));
     renderLog();
+    renderStats();
   }
 
   function undo() {
     const log = loadLog();
     if (!log.length) return;
-
-    const last = log.pop();
+    log.pop();
     saveLog(log);
-
-    // Rewind tier only if that roll actually advanced it
-    if (last.advancedTiered) {
-      const perks = parsePerks(el("perkInput").value);
-      const tiers = normalizeTierMap(perks);
-      const p = perks.find(x => x.name === last.perk);
-
-      if (p) {
-        const current = tiers[p.name];
-        if (typeof last.tier === "number" && current === last.tier) {
-          tiers[p.name] = (last.tier <= 1) ? null : (last.tier - 1);
-          saveTiers(tiers);
-        }
-      }
-    }
-
-    setResult("Undid last roll.");
-    renderPerkTable();
-    renderStats();
+    setResult("Undid last logged roll.");
     renderLog();
+    renderStats();
   }
 
   function resetTiers() {
@@ -457,15 +437,14 @@
 
   function exportCsv() {
     const log = loadLog();
-    const header = ["time","team","perk","tier","tierDisplay","weight","note"];
+    const header = ["time","team","perk","tierAtRoll","weight","note"];
     const rows = [header.join(",")];
     for (const e of log) {
       rows.push([
         csvCell(e.time),
         csvCell(e.team || ""),
         csvCell(e.perk),
-        csvCell(e.tier === null ? "" : e.tier),
-        csvCell(e.tierDisplay),
+        csvCell(e.tierAtRoll),
         csvCell(e.weight),
         csvCell(e.note || "")
       ].join(","));
@@ -501,14 +480,13 @@
   }
 
   // UI hooks
-  el("rollBtn").addEventListener("click", roll);
+  el("rollBtn").addEventListener("click", rollMany);
   el("undoBtn").addEventListener("click", undo);
   el("resetTiersBtn").addEventListener("click", resetTiers);
   el("clearLogBtn").addEventListener("click", clearLog);
 
   el("saveBtn").addEventListener("click", () => {
     savePerkText();
-    // normalize tiers for any new/removed perks
     normalizeTierMap(parsePerks(el("perkInput").value));
     setResult("Saved perk list.");
     renderPerkTable();
