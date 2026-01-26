@@ -74,18 +74,6 @@
       </div>
 
       <div class="row" style="margin-top:10px;">
-        <select id="teamSelect">
-          <option value="">(No team)</option>
-          <option>Team 1</option>
-          <option>Team 2</option>
-          <option>Team 3</option>
-          <option>Team 4</option>
-          <option>Team 5</option>
-        </select>
-        <input id="note" placeholder="Note (optional)" />
-      </div>
-
-      <div class="row" style="margin-top:10px;">
         <label class="row" style="gap:8px; align-items:center; flex:0 0 auto;">
           <input type="checkbox" id="includeMaxed" />
           <span class="muted" style="font-size:13px;">Include maxed perks in rolls</span>
@@ -141,11 +129,9 @@
           <thead>
             <tr>
               <th style="width:160px;">Time</th>
-              <th style="width:130px;">Team</th>
               <th>Perk</th>
               <th style="width:110px;">Tier (at roll)</th>
               <th style="width:80px;">Weight</th>
-              <th>Note</th>
             </tr>
           </thead>
           <tbody id="logBody"></tbody>
@@ -186,9 +172,9 @@
 </div>
 
 <script>
-  const LS_PERKS = "inferno_perks_v2";
-  const LS_TIERS = "inferno_tiers_v2"; // { name: null|number }
-  const LS_LOG   = "inferno_log_v2";
+  const LS_PERKS = "inferno_perks_v3";
+  const LS_TIERS = "inferno_tiers_v3"; // { name: null|number }
+  const LS_LOG   = "inferno_log_v3";
 
   const el = (id) => document.getElementById(id);
 
@@ -355,11 +341,9 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(e.time)}</td>
-        <td>${escapeHtml(e.team || "")}</td>
         <td><b>${escapeHtml(e.perk)}</b></td>
         <td>${escapeHtml(e.tierAtRoll)}</td>
         <td>${escapeHtml(e.weight)}</td>
-        <td>${escapeHtml(e.note || "")}</td>
       `;
       body.appendChild(tr);
     }
@@ -375,8 +359,6 @@
     if (!pool.length) { setResult("No perks available (all maxed). Toggle ‘Include maxed perks’ to roll anyway."); return; }
 
     const n = Math.max(1, Math.min(3, Number(el("rollCount").value || 1)));
-    const team = el("teamSelect").value;
-    const note = el("note").value.trim();
 
     const results = [];
     const log = loadLog();
@@ -390,8 +372,6 @@
 
       log.push({
         time: nowString(),
-        team,
-        note,
         perk: picked.name,
         tierAtRoll: tdisp,
         weight: picked.weight
@@ -437,16 +417,14 @@
 
   function exportCsv() {
     const log = loadLog();
-    const header = ["time","team","perk","tierAtRoll","weight","note"];
+    const header = ["time","perk","tierAtRoll","weight"];
     const rows = [header.join(",")];
     for (const e of log) {
       rows.push([
         csvCell(e.time),
-        csvCell(e.team || ""),
         csvCell(e.perk),
         csvCell(e.tierAtRoll),
-        csvCell(e.weight),
-        csvCell(e.note || "")
+        csvCell(e.weight)
       ].join(","));
     }
     downloadFile("perk-roll-log.csv", rows.join("\n"), "text/csv");
