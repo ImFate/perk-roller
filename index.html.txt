@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Perk Roller</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin: 0; background: #0b0f17; color: #e7eefc; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card { background: #121a2a; border: 1px solid #1f2a44; border-radius: 14px; padding: 14px; }
+    textarea, input, select {
+      width: 100%; box-sizing: border-box; background: #0e1526; color: #e7eefc;
+      border: 1px solid #263455; border-radius: 10px; padding: 10px;
+    }
+    textarea { min-height: 240px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1; }
+    button {
+      cursor: pointer; border: 1px solid #2a3b63; background: #172443; color: #e7eefc;
+      padding: 10px 12px; border-radius: 12px; font-weight: 600;
+    }
+    button.primary { background: #2454ff; border-color: #2454ff; }
+    button.danger { background: #ff3b3b; border-color: #ff3b3b; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .result { font-size: 18px; font-weight: 800; padding: 12px; border-radius: 12px; background: #0e1526; border: 1px solid #263455; }
+    .muted { color: #9fb0d0; font-size: 12px; }
+    .log { max-height: 260px; overflow: auto; border-radius: 12px; border: 1px solid #263455; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #263455; font-size: 13px; vertical-align: top; }
+    th { position: sticky; top: 0; background: #0e1526; text-align: left; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid #263455; background: #0e1526; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Perk Roller</h1>
+    <div class="muted">
+      Format perks as: <span class="pill">name | tier | weight</span>
+      (tier and weight optional; defaults: tier=1, weight=1)
+    </div>
+
+    <div class="grid" style="margin-top:12px;">
+      <div class="card">
+        <div class="row">
+          <button class="primary" id="rollBtn">Roll Perk</button>
+          <button id="rollNBtn">Roll N</button>
+          <input id="rollN" type="number" min="1" max="20" value="3" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <label class="row" style="gap:8px; align-items:center; flex:0 0 auto;">
+            <input type="checkbox" id="noDupes" checked />
+            <span class="muted" style="font-size:13px;">No duplicates (within session)</span>
+          </label>
+          <label class="row" style="gap:8px; align-items:center; flex:0 0 auto;">
+            <input type="checkbox" id="removeOnRoll" />
+            <span class="muted" style="font-size:13px;">Remove from pool when rolled</span>
+          </label>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <input id="teamName" placeholder="Team / player (optional)" />
+          <input id="note" placeholder="Note (optional) e.g., 'Tier 2 roll after task 14'" />
+        </div>
+
+        <div style="margin-top:10px;" class="result" id="resultBox">—</div>
+        <div class="muted" style="margin-top:8px;" id="poolStats">Pool: —</div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="undoBtn">Undo last</button>
+          <button id="resetSessionBtn" class="danger">Reset session</button>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="exportJsonBtn">Export JSON</button>
+          <button id="exportCsvBtn">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button id="saveBtn">Save perks</button>
+          <button id="loadSampleBtn">Load sample</button>
+          <button id="clearBtn" class="danger">Clear</button>
+        </div>
+        <div style="margin-top:10px;">
+          <textarea id="perkInput" spellcheck="false"></textarea>
+          <div class="muted" style="margin-top:8px;">
+            Tip: put one perk per line. Example:
+            <span class="pill">Gambler's Fallacy | 2 | 3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row">
+        <div style="flex:1;">
+          <div style="font-weight:700;">Roll Log</div>
+          <div class="muted">Saved in your browser (localStorage). Export for arbitration.</div>
+        </div>
+      </div>
+      <div class="log" style="margin-top:10px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px;">Time</th>
+              <th style="width:140px;">Team</th>
+              <th>Perk</th>
+              <th style="width:70px;">Tier</th>
+              <th style="width:80px;">Weight</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const LS_PERKS = "perk_roller_perks_v1";
+  const LS_LOG   = "perk_roller_log_v1";
+  const LS_SEEN  = "perk_roller_seen_v1";
+
+  const el = (id) => document.getElementById(id);
+
+  function nowString() {
+    const d = new Date();
+    return d.toLocaleString();
+  }
+
+  function parsePerks(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const perks = [];
+    for (const line of lines) {
+      const parts = line.split("|").map(p => p.trim());
+      const name = parts[0];
+      if (!name) continue;
+      const tier = parts[1] ? Number(parts[1]) : 1;
+      const weight = parts[2] ? Number(parts[2]) : 1;
+      perks.push({
+        name,
+        tier: Number.isFinite(tier) && tier > 0 ? tier : 1,
+        weight: Number.isFinite(weight) && weight > 0 ? weight : 1
+      });
+    }
+    return perks;
+  }
+
+  function weightedPick(items) {
+    const total = items.reduce((s, it) => s + it.weight, 0);
+    let r = Math.random() * total;
+    for (const it of items) {
+      r -= it.weight;
+      if (r <= 0) return it;
+    }
+    return items[items.length - 1];
+  }
+
+  function loadPerks() {
+    const saved = localStorage.getItem(LS_PERKS);
+    if (saved) el("perkInput").value = saved;
+  }
+
+  function savePerks() {
+    localStorage.setItem(LS_PERKS, el("perkInput").value);
+    renderStats();
+  }
+
+  function loadLog() {
+    const saved = localStorage.getItem(LS_LOG);
+    return saved ? JSON.parse(saved) : [];
+  }
+
+  function saveLog(log) {
+    localStorage.setItem(LS_LOG, JSON.stringify(log));
+  }
+
+  function loadSeen() {
+    const saved = localStorage.getItem(LS_SEEN);
+    return saved ? JSON.parse(saved) : [];
+  }
+
+  function saveSeen(seen) {
+    localStorage.setItem(LS_SEEN, JSON.stringify(seen));
+  }
+
+  function renderLog() {
+    const log = loadLog();
+    const body = el("logBody");
+    body.innerHTML = "";
+    for (const entry of log.slice().reverse()) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${entry.time}</td>
+        <td>${escapeHtml(entry.team || "")}</td>
+        <td><b>${escapeHtml(entry.perk)}</b></td>
+        <td>${entry.tier}</td>
+        <td>${entry.weight}</td>
+        <td>${escapeHtml(entry.note || "")}</td>
+      `;
+      body.appendChild(tr);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&","&amp;").replaceAll("<","&lt;")
+      .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function getActivePool(perks) {
+    const noDupes = el("noDupes").checked;
+    const seen = loadSeen();
+    let pool = perks.slice();
+
+    if (noDupes && seen.length) {
+      pool = pool.filter(p => !seen.includes(p.name));
+    }
+    return pool;
+  }
+
+  function renderStats() {
+    const perks = parsePerks(el("perkInput").value);
+    const pool = getActivePool(perks);
+    const totalWeight = pool.reduce((s, p) => s + p.weight, 0);
+
+    el("poolStats").textContent =
+      `Pool: ${pool.length}/${perks.length} available • Total weight: ${totalWeight}`;
+  }
+
+  function addToLog(pick) {
+    const log = loadLog();
+    log.push(pick);
+    saveLog(log);
+    renderLog();
+  }
+
+  function rollOnce() {
+    const perks = parsePerks(el("perkInput").value);
+    if (!perks.length) {
+      el("resultBox").textContent = "Add perks first.";
+      return null;
+    }
+
+    const pool = getActivePool(perks);
+    if (!pool.length) {
+      el("resultBox").textContent = "No perks left (reset session or disable no-duplicates).";
+      return null;
+    }
+
+    const picked = weightedPick(pool);
+
+    // session state updates
+    const removeOnRoll = el("removeOnRoll").checked;
+    const noDupes = el("noDupes").checked;
+
+    const time = nowString();
+    const team = el("teamName").value.trim();
+    const note = el("note").value.trim();
+
+    const entry = { time, team, note, perk: picked.name, tier: picked.tier, weight: picked.weight };
+
+    el("resultBox").textContent = `${picked.name} (Tier ${picked.tier})`;
+
+    if (noDupes) {
+      const seen = loadSeen();
+      if (!seen.includes(picked.name)) seen.push(picked.name);
+      saveSeen(seen);
+    }
+
+    if (removeOnRoll) {
+      // remove from the source text itself (persistent)
+      const lines = el("perkInput").value.split(/\r?\n/);
+      const idx = lines.findIndex(l => l.trim().startsWith(picked.name));
+      if (idx >= 0) {
+        lines.splice(idx, 1);
+        el("perkInput").value = lines.join("\n");
+        savePerks();
+      }
+    }
+
+    addToLog(entry);
+    renderStats();
+    return entry;
+  }
+
+  function rollN(n) {
+    const results = [];
+    for (let i = 0; i < n; i++) {
+      const r = rollOnce();
+      if (!r) break;
+      results.push(r);
+    }
+    return results;
+  }
+
+  function undoLast() {
+    const log = loadLog();
+    if (!log.length) return;
+
+    const last = log.pop();
+    saveLog(log);
+
+    // If noDupes is on, remove it from seen (only if it doesn't appear earlier in log)
+    const seen = loadSeen();
+    const stillUsed = log.some(x => x.perk === last.perk);
+    if (!stillUsed) {
+      const idx = seen.indexOf(last.perk);
+      if (idx >= 0) seen.splice(idx, 1);
+      saveSeen(seen);
+    }
+
+    el("resultBox").textContent = "Undid last roll.";
+    renderLog();
+    renderStats();
+  }
+
+  function resetSession() {
+    saveSeen([]);
+    el("resultBox").textContent = "Session reset.";
+    renderStats();
+  }
+
+  function exportJson() {
+    const log = loadLog();
+    downloadFile("perk-roll-log.json", JSON.stringify(log, null, 2), "application/json");
+  }
+
+  function exportCsv() {
+    const log = loadLog();
+    const header = ["time","team","perk","tier","weight","note"];
+    const rows = [header.join(",")];
+    for (const e of log) {
+      rows.push([
+        csvCell(e.time),
+        csvCell(e.team || ""),
+        csvCell(e.perk),
+        csvCell(e.tier),
+        csvCell(e.weight),
+        csvCell(e.note || "")
+      ].join(","));
+    }
+    downloadFile("perk-roll-log.csv", rows.join("\n"), "text/csv");
+  }
+
+  function csvCell(v) {
+    const s = String(v ?? "");
+    if (/[,"\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
+    return s;
+  }
+
+  function downloadFile(filename, text, mime) {
+    const blob = new Blob([text], { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Buttons
+  el("rollBtn").addEventListener("click", () => rollOnce());
+  el("rollNBtn").addEventListener("click", () => {
+    const n = Math.max(1, Math.min(20, Number(el("rollN").value || 1)));
+    rollN(n);
+  });
+  el("undoBtn").addEventListener("click", undoLast);
+  el("resetSessionBtn").addEventListener("click", resetSession);
+
+  el("saveBtn").addEventListener("click", () => { savePerks(); el("resultBox").textContent="Saved perks."; });
+  el("clearBtn").addEventListener("click", () => { el("perkInput").value=""; savePerks(); renderStats(); });
+  el("loadSampleBtn").addEventListener("click", () => {
+    el("perkInput").value =
+`Gambler's Fallacy | 2 | 3
+Fuck Off | 2 | 2
+Noob Tube | 3 | 1
+Perk Purge | 3 | 1
+Blue Shell | 3 | 1
+Thickfreakness | 2 | 2
+Momentum Multiplier | 1 | 4`;
+    savePerks(); renderStats();
+  });
+
+  el("exportJsonBtn").addEventListener("click", exportJson);
+  el("exportCsvBtn").addEventListener("click", exportCsv);
+
+  // Init
+  loadPerks();
+  renderLog();
+  renderStats();
+</script>
+</body>
+</html>
