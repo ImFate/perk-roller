@@ -6,32 +6,43 @@
   <title>Perk Roller</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-    body { margin: 0; background: #2b2416; color: #e7eefc; }
+    body { margin: 0; background: #120405; color: #ffe8cf; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
     h1 { margin: 0 0 12px; font-size: 22px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
-    .card { background: #121a2a; border: 1px solid #1f2a44; border-radius: 14px; padding: 14px; }
+    .card { background: #1b0707; border: 1px solid #4a1515; border-radius: 14px; padding: 14px; }
     textarea, input, select {
-      width: 100%; box-sizing: border-box; background: #0e1526; color: #e7eefc;
-      border: 1px solid #263455; border-radius: 10px; padding: 10px;
+  width: 100%; box-sizing: border-box;
+  background: #140607; color: #ffe8cf;
+  border: 1px solid #6a1f1f; border-radius: 10px; padding: 10px;
     }
     textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .row > * { flex: 1; }
     button {
-      cursor: pointer; border: 1px solid #2a3b63; background: #172443; color: #e7eefc;
-      padding: 10px 12px; border-radius: 12px; font-weight: 600;
-    }
-    button.primary { background: #2454ff; border-color: #2454ff; }
-    button.danger { background: #ff3b3b; border-color: #ff3b3b; }
+  cursor: pointer;
+  border: 1px solid #7a2323;
+  background: #2a0a0a;
+  color: #ffe8cf;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+button.primary { background: #ff3b1d; border-color: #ff3b1d; color: #120405; }
+button.danger  { background: #ffb020; border-color: #ffb020; color: #120405; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .result { font-size: 18px; font-weight: 800; padding: 12px; border-radius: 12px; background: #0e1526; border: 1px solid #263455; }
+    .result {
+  font-size: 18px; font-weight: 800;
+  padding: 12px; border-radius: 12px;
+  background: #220808;
+  border: 1px solid #ff3b1d;
+  color: #fff2df;  }
     .muted { color: #9fb0d0; font-size: 12px; }
-    .log { max-height: 280px; overflow: auto; border-radius: 12px; border: 1px solid #263455; }
+    .log { max-height: 280px; overflow: auto; border-radius: 12px; border: 1px solid #6a1f1f; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; border-bottom: 1px solid #263455; font-size: 13px; vertical-align: top; }
-    th { position: sticky; top: 0; background: #0e1526; text-align: left; z-index: 1; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid #263455; background: #0e1526; font-size: 12px; }
+    th, td { padding: 10px; border-bottom: 1px solid #3a1212; font-size: 13px; vertical-align: top; }
+    th { position: sticky; top: 0; background: #140607; text-align: left; z-index: 1; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid #6a1f1f; background: #140607; color: #ffe8cf; font-size: 12px; }
     .tiny { font-size: 11px; }
   </style>
 </head>
@@ -554,4 +565,5 @@ Momentum Multiplier | 3 | 4`;
 </script>
 </body>
 </html>
+
 
