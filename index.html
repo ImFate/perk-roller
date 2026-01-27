@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Inferno Perk Roller</title>
+  <title>Task Roller</title>
 
   <style>
     :root{
@@ -21,12 +21,9 @@
       --text:#e8eef7;
       --muted: rgba(232,238,247,.72);
 
-      /* YELLOW BUTTONS */
-      --orange:#ffff00;
-      --orange2:#e6e600;
-
-      --shadow: 0 18px 60px rgba(0,0,0,.55);
-      --shadow2: 0 10px 28px rgba(0,0,0,.45);
+      /* Yellow */
+      --y1:#ffff00;
+      --y2:#e6e600;
 
       --r:16px;
     }
@@ -56,6 +53,7 @@
       grid-template-columns: 2fr 1fr;
       gap:14px;
       margin-top:14px;
+      align-items:start;
     }
 
     .card{
@@ -63,7 +61,6 @@
       border:1px solid var(--border);
       border-radius: var(--r);
       padding:14px;
-      box-shadow: var(--shadow2);
       backdrop-filter: blur(6px);
     }
 
@@ -72,16 +69,22 @@
 
     input, textarea{
       width:100%;
+      box-sizing:border-box;
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.12));
       color: var(--text);
       border:1px solid var(--border);
       border-radius:14px;
       padding:10px 12px;
       outline:none;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus{
+      border-color: rgba(255,255,0,.5);
+      box-shadow: 0 0 0 3px rgba(255,255,0,.10);
     }
 
     textarea{
-      min-height:160px;
+      min-height:180px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
@@ -93,14 +96,20 @@
       padding:12px;
       border-radius:14px;
       font-weight:900;
-      box-shadow: 0 8px 18px rgba(0,0,0,.35);
+
+      /* REMOVE BUTTON GLOW */
+      box-shadow: none;
     }
+    button:hover{ border-color: var(--border2); }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
 
     .primary{
-      background: linear-gradient(180deg, var(--orange), var(--orange2));
+      background: linear-gradient(180deg, var(--y1), var(--y2));
       border-color: rgba(0,0,0,.35);
       color:#1a1a00;
-      box-shadow: 0 10px 22px rgba(255,255,0,.25);
+
+      /* REMOVE BUTTON GLOW */
+      box-shadow: none;
     }
 
     .ghost{
@@ -121,6 +130,7 @@
       border:1px dashed rgba(255,255,255,.14);
       white-space:pre-wrap;
       font-weight:900;
+      line-height:1.25;
     }
 
     .list{
@@ -128,6 +138,7 @@
       border-radius:14px;
       border:1px solid var(--border);
       overflow:auto;
+      background: rgba(0,0,0,.18);
     }
 
     table{ width:100%; border-collapse:collapse; }
@@ -135,15 +146,18 @@
       padding:10px;
       border-bottom:1px solid rgba(255,255,255,.06);
       font-size:13px;
+      vertical-align:top;
     }
-
     th{
       position:sticky;
       top:0;
       background:#0c1016;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      font-size:12px;
+      letter-spacing:.2px;
     }
 
-    .tiers{ display:flex; gap:6px; }
+    .tiers{ display:flex; gap:6px; flex-wrap:wrap; }
     .tierBtn{
       padding:6px 10px;
       border-radius:999px;
@@ -151,11 +165,18 @@
       background: rgba(255,255,255,.04);
       cursor:pointer;
       font-weight:900;
+      user-select:none;
     }
 
     .tierBtn.active{
-      background: linear-gradient(180deg, var(--orange), var(--orange2));
+      background: linear-gradient(180deg, var(--y1), var(--y2));
       color:#1a1a00;
+      border-color: rgba(0,0,0,.35);
+    }
+
+    details summary{
+      cursor:pointer;
+      font-weight:900;
     }
 
     @media (max-width:980px){
@@ -174,6 +195,7 @@
   <div class="wrap">
     <div class="grid">
 
+      <!-- LEFT: Roller + Tier list -->
       <div class="card">
         <div class="row">
           <button class="primary" id="roll1">Roll 1</button>
@@ -181,20 +203,26 @@
           <button class="primary" id="roll3">Roll 3</button>
         </div>
 
-        <div class="resultBox" id="resultBox">Click Roll 1 / 2 / 3</div>
+        <div class="resultBox" id="resultBox">Click Roll 1 / Roll 2 / Roll 3</div>
+        <div class="muted" style="margin-top:8px;" id="statsBox">Pool: —</div>
 
-        <div class="row" style="margin-top:10px;">
+        <div class="row" style="margin-top:12px;">
           <input id="search" placeholder="Search perks..." />
-          <button class="ghost" id="saveBtn">Save</button>
+          <button class="ghost" id="applyBtn" style="flex:0 0 170px;">Apply Perk List</button>
         </div>
 
-        <div class="list" style="max-height:360px;">
+        <div class="row" style="margin-top:10px;">
+          <button class="danger" id="resetTiersBtn">Reset tiers</button>
+          <button class="danger" id="clearLogBtn">Clear log</button>
+        </div>
+
+        <div class="list" style="max-height:420px;">
           <table>
             <thead>
               <tr>
                 <th>Perk</th>
-                <th>Max</th>
-                <th>Tier</th>
+                <th style="width:80px;">Max</th>
+                <th style="width:260px;">Tier</th>
               </tr>
             </thead>
             <tbody id="perkBody"></tbody>
@@ -202,26 +230,36 @@
         </div>
       </div>
 
+      <!-- RIGHT: Log + Advanced -->
       <div class="card">
-        <b>Log</b>
-        <div class="list" style="max-height:420px;">
+        <div class="row">
+          <b style="font-size:14px;">Log</b>
+          <div class="muted" style="text-align:right;" id="logCount">0 entries</div>
+        </div>
+
+        <div class="list" style="max-height:260px;">
           <table>
             <thead>
               <tr>
-                <th>Time</th>
+                <th style="width:160px;">Time</th>
                 <th>Perk</th>
-                <th>Tier</th>
+                <th style="width:90px;">Tier</th>
               </tr>
             </thead>
             <tbody id="logBody"></tbody>
           </table>
         </div>
-      </div>
 
-      <div class="card" style="grid-column:1/-1;">
-        <details>
-          <summary>Advanced</summary>
-          <textarea id="perkInput"></textarea>
+        <details style="margin-top:14px;">
+          <summary>Advanced (edit perk list)</summary>
+          <div class="muted" style="margin-top:10px;">
+            Format: <code>Perk Name | MaxTier | Weight</code> (MaxTier/Weight optional)
+          </div>
+          <textarea id="perkInput" spellcheck="false" style="margin-top:10px;"></textarea>
+          <div class="row" style="margin-top:10px;">
+            <button class="ghost" id="loadSampleBtn">Load sample</button>
+            <button class="danger" id="wipeAllBtn">Wipe everything</button>
+          </div>
         </details>
       </div>
 
@@ -229,54 +267,262 @@
   </div>
 
 <script>
-  const el = id => document.getElementById(id);
+  // storage
+  const LS_PERKS = "perkroller_perks_v4";
+  const LS_TIERS = "perkroller_tiers_v4";
+  const LS_LOG   = "perkroller_log_v4";
 
-  function parsePerks(t){
-    return t.split(/\n/).map(l=>{
-      const [n,m=1,w=1]=l.split("|").map(s=>s.trim());
-      return n?{name:n,max:+m||1,weight:+w||1}:null;
-    }).filter(Boolean);
-  }
+  const el = (id) => document.getElementById(id);
 
-  function weightedPick(arr){
-    let t=arr.reduce((s,p)=>s+p.weight,0),r=Math.random()*t;
-    for(const p of arr){ if((r-=p.weight)<=0) return p; }
-    return arr[arr.length-1];
-  }
+  function nowString(){ return new Date().toLocaleString(); }
 
-  function render(){
-    const perks=parsePerks(el("perkInput").value);
-    el("perkBody").innerHTML=perks.map(p=>`
-      <tr>
-        <td>${p.name}</td>
-        <td>${p.max}</td>
-        <td>
-          <div class="tiers">
-            ${["None",...Array.from({length:p.max},(_,i)=>i+1)].map(v=>`
-              <span class="tierBtn">${v}</span>`).join("")}
-          </div>
-        </td>
-      </tr>`).join("");
-  }
-
-  function roll(n){
-    const perks=parsePerks(el("perkInput").value);
-    const pool=[...perks];
-    const out=[];
-    for(let i=0;i<n && pool.length;i++){
-      const p=weightedPick(pool);
-      pool.splice(pool.indexOf(p),1);
-      out.push(`${i+1}) ${p.name}`);
+  // Perk format: name | maxTier | weight
+  function parsePerks(text){
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const perks = [];
+    for (const line of lines){
+      const parts = line.split("|").map(p => p.trim());
+      const name = parts[0];
+      if (!name) continue;
+      const maxTier = parts[1] ? Number(parts[1]) : 1;
+      const weight  = parts[2] ? Number(parts[2]) : 1;
+      perks.push({
+        name,
+        maxTier: Number.isFinite(maxTier) && maxTier > 0 ? Math.floor(maxTier) : 1,
+        weight:  Number.isFinite(weight)  && weight  > 0 ? weight : 1
+      });
     }
-    el("resultBox").textContent=out.join("\n");
+    return perks;
   }
 
-  el("roll1").onclick=()=>roll(1);
-  el("roll2").onclick=()=>roll(2);
-  el("roll3").onclick=()=>roll(3);
-  el("saveBtn").onclick=render;
+  function weightedPick(items){
+    const total = items.reduce((s,it)=>s+it.weight,0);
+    let r = Math.random() * total;
+    for (const it of items){
+      r -= it.weight;
+      if (r <= 0) return it;
+    }
+    return items[items.length-1];
+  }
 
-  render();
+  function loadPerkText(){
+    const saved = localStorage.getItem(LS_PERKS);
+    if (saved) el("perkInput").value = saved;
+  }
+  function savePerkText(){
+    localStorage.setItem(LS_PERKS, el("perkInput").value);
+  }
+
+  function loadTiers(){
+    const saved = localStorage.getItem(LS_TIERS);
+    return saved ? JSON.parse(saved) : {};
+  }
+  function saveTiers(map){
+    localStorage.setItem(LS_TIERS, JSON.stringify(map));
+  }
+
+  function loadLog(){
+    const saved = localStorage.getItem(LS_LOG);
+    return saved ? JSON.parse(saved) : [];
+  }
+  function saveLog(log){
+    localStorage.setItem(LS_LOG, JSON.stringify(log));
+  }
+
+  function normalizeTierMap(perks){
+    const tiers = loadTiers();
+    const names = new Set(perks.map(p => p.name));
+
+    for (const p of perks){
+      if (!(p.name in tiers)) tiers[p.name] = null;
+      const v = tiers[p.name];
+      if (typeof v === "number"){
+        if (v < 1) tiers[p.name] = null;
+        if (v > p.maxTier) tiers[p.name] = p.maxTier;
+      }
+    }
+
+    for (const k of Object.keys(tiers)){
+      if (!names.has(k)) delete tiers[k];
+    }
+
+    saveTiers(tiers);
+    return tiers;
+  }
+
+  function tierDisplay(cur, maxTier){
+    return (cur === null) ? `None/${maxTier}` : `${cur}/${maxTier}`;
+  }
+
+  function setResult(text){
+    el("resultBox").textContent = text;
+  }
+
+  function renderStats(){
+    const perks = parsePerks(el("perkInput").value);
+    const tiers = normalizeTierMap(perks);
+    const poolCount = perks.length;
+    const maxed = perks.filter(p => typeof tiers[p.name] === "number" && tiers[p.name] >= p.maxTier).length;
+    el("statsBox").textContent = `Perks: ${poolCount} • Maxed: ${maxed}`;
+  }
+
+  function renderPerkTable(){
+    const perks = parsePerks(el("perkInput").value);
+    const tiers = normalizeTierMap(perks);
+    const q = el("search").value.trim().toLowerCase();
+
+    const body = el("perkBody");
+    body.innerHTML = "";
+
+    for (const p of perks){
+      if (q && !p.name.toLowerCase().includes(q)) continue;
+
+      const cur = tiers[p.name];
+      const btns = [];
+      btns.push(`<span class="tierBtn ${cur===null?"active":""}" data-perk="${p.name}" data-tier="">None</span>`);
+      for (let t=1; t<=p.maxTier; t++){
+        btns.push(`<span class="tierBtn ${cur===t?"active":""}" data-perk="${p.name}" data-tier="${t}">${t}</span>`);
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${p.name}</b><div class="muted" style="font-size:11px;">w=${p.weight}</div></td>
+        <td>${p.maxTier}</td>
+        <td><div class="tiers">${btns.join("")}</div></td>
+      `;
+      body.appendChild(tr);
+    }
+
+    body.querySelectorAll(".tierBtn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const perkName = btn.getAttribute("data-perk");
+        const tierStr = btn.getAttribute("data-tier");
+        const perks2 = parsePerks(el("perkInput").value);
+        const tiers2 = normalizeTierMap(perks2);
+        tiers2[perkName] = tierStr === "" ? null : Number(tierStr);
+        saveTiers(tiers2);
+        renderPerkTable();
+        renderStats();
+      });
+    });
+  }
+
+  function renderLog(){
+    const log = loadLog();
+    el("logCount").textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
+    const body = el("logBody");
+    body.innerHTML = "";
+
+    for (const e of log.slice().reverse()){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${e.time}</td>
+        <td><b>${e.perk}</b></td>
+        <td>${e.tierAtRoll}</td>
+      `;
+      body.appendChild(tr);
+    }
+  }
+
+  // No duplicates within a single click
+  function rollN(nWanted){
+    const perks = parsePerks(el("perkInput").value);
+    if (!perks.length){ setResult("Add perks in Advanced, then click Apply Perk List."); return; }
+
+    const tiers = normalizeTierMap(perks);
+
+    const tempPool = perks.slice();
+    const n = Math.min(nWanted, tempPool.length);
+
+    const results = [];
+    const log = loadLog();
+
+    for (let i=0; i<n; i++){
+      const picked = weightedPick(tempPool);
+      const idx = tempPool.findIndex(p => p.name === picked.name);
+      if (idx >= 0) tempPool.splice(idx, 1);
+
+      const cur = tiers[picked.name] ?? null;
+      const tdisp = tierDisplay(cur, picked.maxTier);
+
+      results.push(`${i+1}) ${picked.name} — Tier ${tdisp}`);
+      log.push({ time: nowString(), perk: picked.name, tierAtRoll: tdisp });
+    }
+
+    saveLog(log);
+    setResult(results.join("\n"));
+    renderLog();
+  }
+
+  function applyPerkList(){
+    savePerkText();
+    const perks = parsePerks(el("perkInput").value);
+    normalizeTierMap(perks);
+    setResult("Applied perk list.");
+    renderPerkTable();
+    renderStats();
+  }
+
+  function resetTiers(){
+    const perks = parsePerks(el("perkInput").value);
+    const map = {};
+    for (const p of perks) map[p.name] = null;
+    saveTiers(map);
+    setResult("Tiers reset.");
+    renderPerkTable();
+    renderStats();
+  }
+
+  function clearLog(){
+    saveLog([]);
+    setResult("Log cleared.");
+    renderLog();
+  }
+
+  function wipeAll(){
+    localStorage.removeItem(LS_PERKS);
+    localStorage.removeItem(LS_TIERS);
+    localStorage.removeItem(LS_LOG);
+    el("perkInput").value = "";
+    el("search").value = "";
+    setResult("Wiped everything.");
+    renderPerkTable();
+    renderStats();
+    renderLog();
+  }
+
+  // UI wiring
+  el("roll1").addEventListener("click", () => rollN(1));
+  el("roll2").addEventListener("click", () => rollN(2));
+  el("roll3").addEventListener("click", () => rollN(3));
+
+  el("applyBtn").addEventListener("click", applyPerkList);
+  el("search").addEventListener("input", renderPerkTable);
+
+  el("resetTiersBtn").addEventListener("click", resetTiers);
+  el("clearLogBtn").addEventListener("click", clearLog);
+  el("wipeAllBtn").addEventListener("click", wipeAll);
+
+  el("loadSampleBtn").addEventListener("click", () => {
+    el("perkInput").value =
+`Gambler's Fallacy | 3 | 3
+Fuck Off | 2 | 2
+Noob Tube | 1 | 1
+Perk Purge | 1 | 1
+Blue Shell | 1 | 1
+Thickfreakness | 3 | 2
+Momentum Multiplier | 3 | 4`;
+    setResult("Sample loaded. Click Apply Perk List.");
+  });
+
+  // Init
+  loadPerkText();
+  // If first run, give a tiny starter so Advanced doesn't look broken
+  if (!el("perkInput").value.trim()){
+    el("perkInput").value = `Blue Shell | 1 | 1\nGambler's Fallacy | 3 | 3`;
+  }
+  applyPerkList();
+  renderLog();
 </script>
 </body>
 </html>
