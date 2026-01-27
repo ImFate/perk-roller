@@ -4,54 +4,201 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Inferno Perk Roller</title>
-  <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-    body { margin:0; background:#120405; color:#ffe8cf; }
-    .wrap { max-width:1100px; margin:0 auto; padding:18px; }
-    h1 { margin:0 0 10px; font-size:20px; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start; }
-    .card { background:#1b0707; border:1px solid #4a1515; border-radius:16px; padding:14px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .row > * { flex:1; }
-    input, select, textarea {
-      width:100%; box-sizing:border-box; background:#140607; color:#ffe8cf;
-      border:1px solid #6a1f1f; border-radius:12px; padding:10px;
-    }
-    textarea { min-height:180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    button {
-      cursor:pointer; border:1px solid #7a2323; background:#2a0a0a; color:#ffe8cf;
-      padding:12px 12px; border-radius:14px; font-weight:800;
-    }
-    button:disabled { opacity:.55; cursor:not-allowed; }
-    .primary { background:#ff3b1d; border-color:#ff3b1d; color:#120405; }
-    .ghost { background:#140607; border-color:#6a1f1f; font-weight:700; }
-    .danger { background:#ffb020; border-color:#ffb020; color:#120405; }
-    .result {
-      font-size:18px; font-weight:900; padding:14px; border-radius:14px;
-      background:#220808; border:1px solid #ff3b1d; color:#fff2df;
-      line-height:1.25;
-      white-space: pre-wrap;
-    }
-    .muted { color:#ffcfaa; opacity:.85; font-size:12px; }
-    .tiny { font-size:11px; opacity:.8; }
-    .pill {
-      display:inline-block; padding:2px 8px; border-radius:999px;
-      border:1px solid #6a1f1f; background:#140607; color:#ffe8cf; font-size:12px;
-    }
-    .list { max-height:520px; overflow:auto; border-radius:14px; border:1px solid #6a1f1f; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:10px; border-bottom:1px solid #3a1212; vertical-align:top; font-size:13px; }
-    th { position:sticky; top:0; background:#140607; text-align:left; z-index:1; }
-    .tiers { display:flex; gap:6px; flex-wrap:wrap; }
-    .tierBtn {
-      padding:6px 10px; border-radius:999px; border:1px solid #6a1f1f;
-      background:#140607; color:#ffe8cf; font-weight:800; cursor:pointer; user-select:none;
-    }
-    .tierBtn.active { background:#ff3b1d; border-color:#ff3b1d; color:#120405; }
-    details summary { cursor:pointer; font-weight:800; }
-    .two { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-  </style>
+<style>
+  :root {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    --bg0: #07090c;
+    --bg1: #0b0f14;
+
+    --panel: #10151d;
+    --panel2: #0f141b;
+
+    --border: rgba(255,255,255,.08);
+    --border2: rgba(255,255,255,.12);
+
+    --text: #e8eef7;
+    --muted: rgba(232,238,247,.72);
+
+    --orange: #f18a1a;
+    --orange2: #d87412;
+
+    --btn: #1a212c;
+    --btn2: #161c25;
+
+    --shadow: 0 18px 60px rgba(0,0,0,.55);
+    --shadow2: 0 10px 28px rgba(0,0,0,.45);
+    --glow: 0 0 0 1px rgba(255,255,255,.06), 0 0 40px rgba(0,0,0,.45);
+
+    --r: 16px;
+  }
+
+  body{
+    margin:0;
+    color: var(--text);
+    background:
+      radial-gradient(1000px 600px at 50% 10%, rgba(255,255,255,.06), transparent 60%),
+      radial-gradient(900px 600px at 50% 100%, rgba(0,0,0,.55), transparent 60%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+  }
+
+  .wrap{
+    max-width:1100px;
+    margin:0 auto;
+    padding:18px;
+  }
+
+  h1{ margin:0 0 10px; font-size:20px; letter-spacing:.2px; }
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    align-items:start;
+  }
+
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid var(--border);
+    border-radius: var(--r);
+    padding:14px;
+    box-shadow: var(--shadow2), var(--glow);
+    backdrop-filter: blur(6px);
+  }
+
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .row > * { flex:1; }
+
+  input, select, textarea{
+    width:100%;
+    box-sizing:border-box;
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.12));
+    color: var(--text);
+    border:1px solid var(--border);
+    border-radius: 14px;
+    padding:10px 12px;
+    outline:none;
+  }
+  input:focus, select:focus, textarea:focus{
+    border-color: rgba(241,138,26,.55);
+    box-shadow: 0 0 0 3px rgba(241,138,26,.12);
+  }
+
+  textarea{
+    min-height:180px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  button{
+    cursor:pointer;
+    border:1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18));
+    color: var(--text);
+    padding:12px 12px;
+    border-radius: 14px;
+    font-weight:800;
+    box-shadow: 0 8px 18px rgba(0,0,0,.35);
+  }
+  button:hover{ border-color: var(--border2); }
+  button:disabled{ opacity:.55; cursor:not-allowed; }
+
+  /* Roll buttons look in your screenshot */
+  .primary{
+    background: linear-gradient(180deg, var(--orange), var(--orange2));
+    border-color: rgba(0,0,0,.25);
+    color: #1a1208;
+    box-shadow: 0 10px 22px rgba(241,138,26,.22);
+  }
+  .primary:hover{
+    filter: brightness(1.03);
+  }
+
+  .ghost{
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.22));
+    border-color: var(--border);
+    font-weight:800;
+  }
+
+  .danger{
+    background: linear-gradient(180deg, #2a313d, #1a212b);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .result{
+    font-size:18px;
+    font-weight:900;
+    padding:14px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.22));
+    border:1px dashed rgba(255,255,255,.14);
+    color: var(--text);
+    line-height:1.25;
+    white-space: pre-wrap;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
+  }
+
+  .muted{ color: var(--muted); font-size:12px; }
+  .tiny{ font-size:11px; opacity:.85; }
+
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    font-size:12px;
+  }
+
+  .list{
+    max-height:520px;
+    overflow:auto;
+    border-radius: 14px;
+    border:1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.28));
+  }
+
+  table{ width:100%; border-collapse:collapse; }
+  th, td{
+    padding:10px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    vertical-align:top;
+    font-size:13px;
+  }
+  th{
+    position:sticky;
+    top:0;
+    background: rgba(12,16,22,.92);
+    text-align:left;
+    z-index:1;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+
+  /* tier buttons, if your version has them */
+  .tiers{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tierBtn{
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    font-weight:900;
+    cursor:pointer;
+    user-select:none;
+  }
+  .tierBtn.active{
+    background: linear-gradient(180deg, var(--orange), var(--orange2));
+    border-color: rgba(0,0,0,.25);
+    color: #1a1208;
+  }
+
+  details summary{ cursor:pointer; font-weight:900; }
+
+  @media (max-width: 900px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+</style>
+
 </head>
 <body>
 <div class="wrap">
@@ -523,4 +670,5 @@ Momentum Multiplier | 3 | 4`;
 </script>
 </body>
 </html>
+
 
