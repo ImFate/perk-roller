@@ -189,7 +189,9 @@
           <button class="primary" id="roll1">Roll 1</button>
           <button class="primary" id="roll2">Roll 2</button>
           <button class="primary" id="roll3">Roll 3</button>
+          <button class="primary" id="roll4">Roll 4</button>
         </div>
+
 
         <div class="resultBox" id="resultBox">Click Roll 1 / Roll 2 / Roll 3</div>
         <div class="muted" style="margin-top:8px;" id="statsBox">Perks: —</div>
@@ -468,6 +470,7 @@
   el("roll1").addEventListener("click", () => rollN(1));
   el("roll2").addEventListener("click", () => rollN(2));
   el("roll3").addEventListener("click", () => rollN(3));
+  el("roll4").addEventListener("click", () => rollN(4));
 
   el("applyBtn").addEventListener("click", applyPerkList);
   el("search").addEventListener("input", renderPerks);
@@ -501,3 +504,4 @@ Momentum Multiplier | 3 | 4`;
 </script>
 </body>
 </html>
+
