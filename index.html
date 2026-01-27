@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Perk Roller</title>
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon.png">
+  <!-- Favicon (put favicon.png next to index.html) -->
+  <link rel="icon" type="image/png" href="favicon.png?v=2">
 
   <style>
     :root{
@@ -26,7 +24,6 @@
       --text:#e8eef7;
       --muted: rgba(232,238,247,.72);
 
-      /* Yellow buttons */
       --y1:#ffff00;
       --y2:#e6e600;
 
@@ -95,9 +92,8 @@
       padding:12px;
       border-radius:14px;
       font-weight:900;
-      box-shadow:none; /* NO GLOW */
+      box-shadow:none; /* no glow */
     }
-
     button:hover{ border-color: var(--border2); }
     button:disabled{ opacity:.55; cursor:not-allowed; }
 
@@ -105,7 +101,7 @@
       background: linear-gradient(180deg, var(--y1), var(--y2));
       border-color: rgba(0,0,0,.35);
       color:#1a1a00;
-      box-shadow:none; /* NO GLOW */
+      box-shadow:none; /* no glow */
     }
 
     .ghost{
@@ -161,18 +157,15 @@
       cursor:pointer;
       font-weight:900;
       user-select:none;
+      color: var(--text);
     }
-
     .tierBtn.active{
       background: linear-gradient(180deg, var(--y1), var(--y2));
       color:#1a1a00;
       border-color: rgba(0,0,0,.35);
     }
 
-    details summary{
-      cursor:pointer;
-      font-weight:900;
-    }
+    details summary{ cursor:pointer; font-weight:900; }
 
     @media (max-width:980px){
       .grid{ grid-template-columns:1fr; }
@@ -248,7 +241,7 @@
         <details style="margin-top:14px;">
           <summary>Advanced (edit perk list)</summary>
           <div class="muted" style="margin-top:10px;">
-            Format: <code>Perk Name | MaxTier | Weight</code>
+            Format: <code>Perk Name | MaxTier | Weight</code> (MaxTier/Weight optional)
           </div>
           <textarea id="perkInput" spellcheck="false" style="margin-top:10px;"></textarea>
           <div class="row" style="margin-top:10px;">
@@ -262,103 +255,249 @@
   </div>
 
 <script>
-  const LS_PERKS="perkroller_perks_v5";
-  const LS_TIERS="perkroller_tiers_v5";
-  const LS_LOG="perkroller_log_v5";
-  const el=id=>document.getElementById(id);
-  const now=()=>new Date().toLocaleString();
+  const LS_PERKS = "perkroller_perks_v6";
+  const LS_TIERS = "perkroller_tiers_v6";
+  const LS_LOG   = "perkroller_log_v6";
 
-  function parsePerks(t){
-    return t.split(/\n/).map(l=>{
-      const [n,m=1,w=1]=l.split("|").map(s=>s.trim());
-      return n?{name:n,max:+m||1,weight:+w||1}:null;
-    }).filter(Boolean);
-  }
+  const el = (id) => document.getElementById(id);
+  const nowString = () => new Date().toLocaleString();
 
-  function pick(arr){
-    let t=arr.reduce((s,p)=>s+p.weight,0),r=Math.random()*t;
-    for(const p of arr){ if((r-=p.weight)<=0) return p; }
-    return arr[arr.length-1];
-  }
-
-  function load(k){return JSON.parse(localStorage.getItem(k)||"null")}
-  function save(k,v){localStorage.setItem(k,JSON.stringify(v))}
-
-  function init(){
-    el("perkInput").value=localStorage.getItem(LS_PERKS)||"";
-    if(!el("perkInput").value.trim())
-      el("perkInput").value="Blue Shell | 1 | 1\nGambler's Fallacy | 3 | 3";
-    apply();
-    renderLog();
-  }
-
-  function apply(){
-    localStorage.setItem(LS_PERKS,el("perkInput").value);
-    const perks=parsePerks(el("perkInput").value);
-    const tiers=load(LS_TIERS)||{};
-    perks.forEach(p=>tiers[p.name]??=null);
-    save(LS_TIERS,tiers);
-    render();
-  }
-
-  function render(){
-    const perks=parsePerks(el("perkInput").value);
-    const tiers=load(LS_TIERS)||{};
-    el("perkBody").innerHTML=perks.map(p=>{
-      const cur=tiers[p.name];
-      const btns=["None",...Array.from({length:p.max},(_,i)=>i+1)]
-        .map(v=>`<span class="tierBtn ${cur===v||(!cur&&v==="None")?"active":""}"
-          onclick="setTier('${p.name}',${v==="None"?"null":v})">${v}</span>`).join("");
-      return `<tr><td>${p.name}</td><td>${p.max}</td><td><div class="tiers">${btns}</div></td></tr>`;
-    }).join("");
-    el("statsBox").textContent=`Perks: ${perks.length}`;
-  }
-
-  window.setTier=(n,v)=>{
-    const t=load(LS_TIERS)||{};
-    t[n]=v;
-    save(LS_TIERS,t);
-    render();
-  };
-
-  function roll(n){
-    const perks=parsePerks(el("perkInput").value);
-    let pool=[...perks],out=[],log=load(LS_LOG)||[];
-    for(let i=0;i<n&&pool.length;i++){
-      const p=pick(pool); pool=pool.filter(x=>x!==p);
-      out.push(`${i+1}) ${p.name}`);
-      log.push({time:now(),perk:p.name,tier:(load(LS_TIERS)||{})[p.name]});
+  function parsePerks(text){
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const perks = [];
+    for (const line of lines){
+      const parts = line.split("|").map(p => p.trim());
+      const name = parts[0];
+      if (!name) continue;
+      const maxTier = parts[1] ? Number(parts[1]) : 1;
+      const weight  = parts[2] ? Number(parts[2]) : 1;
+      perks.push({
+        name,
+        maxTier: Number.isFinite(maxTier) && maxTier > 0 ? Math.floor(maxTier) : 1,
+        weight:  Number.isFinite(weight)  && weight  > 0 ? weight : 1
+      });
     }
-    save(LS_LOG,log);
-    el("resultBox").textContent=out.join("\n");
-    renderLog();
+    return perks;
   }
+
+  function weightedPick(items){
+    const total = items.reduce((s,it)=>s+it.weight,0);
+    let r = Math.random() * total;
+    for (const it of items){
+      r -= it.weight;
+      if (r <= 0) return it;
+    }
+    return items[items.length - 1];
+  }
+
+  function loadJson(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch{
+      return fallback;
+    }
+  }
+  function saveJson(key, value){
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function normalizeTiers(perks){
+    const tiers = loadJson(LS_TIERS, {});
+    const names = new Set(perks.map(p => p.name));
+
+    for (const p of perks){
+      if (!(p.name in tiers)) tiers[p.name] = null;
+      const v = tiers[p.name];
+      if (typeof v === "number"){
+        if (v < 1) tiers[p.name] = null;
+        if (v > p.maxTier) tiers[p.name] = p.maxTier;
+      }
+    }
+    for (const k of Object.keys(tiers)){
+      if (!names.has(k)) delete tiers[k];
+    }
+    saveJson(LS_TIERS, tiers);
+    return tiers;
+  }
+
+  function renderStats(){
+    const perks = parsePerks(el("perkInput").value);
+    el("statsBox").textContent = `Perks: ${perks.length}`;
+  }
+
+  function renderPerks(){
+    const perks = parsePerks(el("perkInput").value);
+    const tiers = normalizeTiers(perks);
+    const q = el("search").value.trim().toLowerCase();
+
+    const body = el("perkBody");
+    body.innerHTML = "";
+
+    for (const p of perks){
+      if (q && !p.name.toLowerCase().includes(q)) continue;
+
+      const cur = tiers[p.name]; // null or number
+      const tr = document.createElement("tr");
+
+      const btns = [];
+      btns.push(`<span class="tierBtn ${cur===null ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="">None</span>`);
+      for (let t=1; t<=p.maxTier; t++){
+        btns.push(`<span class="tierBtn ${cur===t ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="${t}">${t}</span>`);
+      }
+
+      tr.innerHTML = `
+        <td><b>${escapeHtml(p.name)}</b><div class="muted" style="font-size:11px;">w=${p.weight}</div></td>
+        <td>${p.maxTier}</td>
+        <td><div class="tiers">${btns.join("")}</div></td>
+      `;
+      body.appendChild(tr);
+    }
+
+    renderStats();
+  }
+
+  // Event delegation: one click handler for all tier buttons (works with any perk name)
+  el("perkBody").addEventListener("click", (e) => {
+    const btn = e.target.closest(".tierBtn");
+    if (!btn) return;
+
+    const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
+    const tierStr = btn.getAttribute("data-tier"); // "" => None
+
+    const perks = parsePerks(el("perkInput").value);
+    const tiers = normalizeTiers(perks);
+
+    tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
+    saveJson(LS_TIERS, tiers);
+
+    renderPerks();
+  });
 
   function renderLog(){
-    const log=load(LS_LOG)||[];
-    el("logCount").textContent=`${log.length} entries`;
-    el("logBody").innerHTML=log.slice().reverse()
-      .map(e=>`<tr><td>${e.time}</td><td>${e.perk}</td><td>${e.tier??"None"}</td></tr>`).join("");
+    const log = loadJson(LS_LOG, []);
+    el("logCount").textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
+
+    el("logBody").innerHTML = log.slice().reverse().map(e => `
+      <tr>
+        <td>${escapeHtml(e.time)}</td>
+        <td><b>${escapeHtml(e.perk)}</b></td>
+        <td>${escapeHtml(e.tierAtRoll)}</td>
+      </tr>
+    `).join("");
   }
 
-  function resetTiers(){save(LS_TIERS,{});apply()}
-  function clearLog(){save(LS_LOG,[]);renderLog()}
+  function tierDisplay(cur, maxTier){
+    return (cur === null) ? `None/${maxTier}` : `${cur}/${maxTier}`;
+  }
+
+  // No duplicates within a single click
+  function rollN(nWanted){
+    const perks = parsePerks(el("perkInput").value);
+    if (!perks.length){
+      el("resultBox").textContent = "Add perks in Advanced, then click Apply Perk List.";
+      return;
+    }
+
+    const tiers = normalizeTiers(perks);
+
+    let tempPool = perks.slice();
+    const n = Math.min(nWanted, tempPool.length);
+
+    const results = [];
+    const log = loadJson(LS_LOG, []);
+
+    for (let i=0; i<n; i++){
+      const picked = weightedPick(tempPool);
+      tempPool = tempPool.filter(p => p !== picked);
+
+      const cur = tiers[picked.name] ?? null;
+      const tdisp = tierDisplay(cur, picked.maxTier);
+
+      results.push(`${i+1}) ${picked.name} — Tier ${tdisp}`);
+      log.push({ time: nowString(), perk: picked.name, tierAtRoll: tdisp });
+    }
+
+    saveJson(LS_LOG, log);
+    el("resultBox").textContent = results.join("\n");
+    renderLog();
+  }
+
+  function applyPerkList(){
+    localStorage.setItem(LS_PERKS, el("perkInput").value);
+    const perks = parsePerks(el("perkInput").value);
+    normalizeTiers(perks);
+    el("resultBox").textContent = "Applied perk list.";
+    renderPerks();
+  }
+
+  function resetTiers(){
+    saveJson(LS_TIERS, {});
+    renderPerks();
+    el("resultBox").textContent = "Tiers reset.";
+  }
+
+  function clearLog(){
+    saveJson(LS_LOG, []);
+    renderLog();
+    el("resultBox").textContent = "Log cleared.";
+  }
+
   function wipeAll(){
-    localStorage.clear();
-    el("perkInput").value="";
-    init();
+    localStorage.removeItem(LS_PERKS);
+    localStorage.removeItem(LS_TIERS);
+    localStorage.removeItem(LS_LOG);
+
+    el("perkInput").value = "";
+    el("search").value = "";
+    el("resultBox").textContent = "Wiped everything.";
+    renderPerks();
+    renderLog();
   }
 
-  el("roll1").onclick=()=>roll(1);
-  el("roll2").onclick=()=>roll(2);
-  el("roll3").onclick=()=>roll(3);
-  el("applyBtn").onclick=apply;
-  el("resetTiersBtn").onclick=resetTiers;
-  el("clearLogBtn").onclick=clearLog;
-  el("wipeAllBtn").onclick=wipeAll;
-  el("loadSampleBtn").onclick=()=>{el("perkInput").value="Blue Shell | 1 | 1\nGambler's Fallacy | 3 | 3";};
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
 
-  init();
+  // UI wiring
+  el("roll1").addEventListener("click", () => rollN(1));
+  el("roll2").addEventListener("click", () => rollN(2));
+  el("roll3").addEventListener("click", () => rollN(3));
+
+  el("applyBtn").addEventListener("click", applyPerkList);
+  el("search").addEventListener("input", renderPerks);
+
+  el("resetTiersBtn").addEventListener("click", resetTiers);
+  el("clearLogBtn").addEventListener("click", clearLog);
+
+  el("wipeAllBtn").addEventListener("click", wipeAll);
+
+  el("loadSampleBtn").addEventListener("click", () => {
+    el("perkInput").value =
+`Gambler's Fallacy | 3 | 3
+Fuck Off | 2 | 2
+Noob Tube | 1 | 1
+Perk Purge | 1 | 1
+Blue Shell | 1 | 1
+Thickfreakness | 3 | 2
+Momentum Multiplier | 3 | 4`;
+    el("resultBox").textContent = "Sample loaded. Click Apply Perk List.";
+  });
+
+  // Init
+  const saved = localStorage.getItem(LS_PERKS);
+  if (saved && saved.trim()){
+    el("perkInput").value = saved;
+  }else{
+    el("perkInput").value = "Blue Shell | 1 | 1\nGambler's Fallacy | 3 | 3";
+  }
+  applyPerkList();
+  renderLog();
 </script>
 </body>
 </html>
