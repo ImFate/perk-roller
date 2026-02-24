@@ -1,7 +1,4 @@
 <script>
-  // =========================
-  // LOCKED PERK LIST (FINAL)
-  // =========================
   const PERKS = [
     { name: "Blackbird", maxTier: 0, weight: 1 },
     { name: "Blueshell", maxTier: 0, weight: 1 },
@@ -16,9 +13,7 @@
     { name: "Fuck Off", maxTier: 1, weight: 1 },
 
     { name: "ICBA", maxTier: 2, weight: 1 },
-
     { name: "Master of Fate", maxTier: 1, weight: 1 },
-
     { name: "Momentum Multiplier", maxTier: 2, weight: 1 },
 
     { name: "Noob Tube", maxTier: 0, weight: 1 },
@@ -44,19 +39,14 @@
     { name: "Unlucky Charm", maxTier: 0, weight: 1 },
   ];
 
-  // =========================
-  // STORAGE
-  // =========================
-  const LS_TIERS = "perkroller_locked_tiers_v4"; // { [name]: null|number } only for maxTier>0
-  const LS_LOG   = "perkroller_locked_log_v4";
+  const LS_TIERS = "perkroller_locked_tiers_v5";
+  const LS_LOG   = "perkroller_locked_log_v5";
 
   const el = (id) => document.getElementById(id);
   const nowString = () => new Date().toLocaleString();
 
-  // last roll snapshot (for copy roll image/text)
   let lastRolled = [];
 
-  // toast
   function toast(msg){
     const t = el("toast");
     if (!t) return;
@@ -103,11 +93,9 @@
         if (p.name in tiers) delete tiers[p.name];
       }
     }
-
     for (const k of Object.keys(tiers)){
       if (!names.has(k)) delete tiers[k];
     }
-
     saveJson(LS_TIERS, tiers);
     return tiers;
   }
@@ -122,20 +110,16 @@
     return items[items.length - 1];
   }
 
-  // ====== YOUR IMAGE FILE NAMING RULE ======
-  // images are named like: momentummultiplier_t0.png, momentummultiplier_t1.png, etc.
+  // your naming: momentummultiplier_t0.png
   function slugifyForYourFiles(name){
     return name
       .toLowerCase()
       .normalize("NFKD")
-      .replace(/[\u2019\u2018]/g, "'")  // curly apostrophes -> '
-      .replace(/'/g, "")               // remove apostrophes
-      .replace(/[^a-z0-9]/g, "");      // remove spaces/punctuation
+      .replace(/[\u2019\u2018]/g, "'")
+      .replace(/'/g, "")
+      .replace(/[^a-z0-9]/g, "");
   }
 
-  // Always uses images/<slug>_t{0..}.png
-  // For maxTier=0 => always t0
-  // For maxTier>0 => None -> t0, tier1.. -> t1..
   function imagePathFor(perk, tiers){
     const slug = slugifyForYourFiles(perk.name);
     let t = 0;
@@ -152,13 +136,9 @@
     return (cur === null) ? "t0" : `t${cur}`;
   }
 
-  // =========================
-  // RENDERING
-  // =========================
   function renderStats(){
     const stats = el("statsBox");
-    if (!stats) return;
-    stats.textContent = `Perks: ${PERKS.length}`;
+    if (stats) stats.textContent = `Perks: ${PERKS.length}`;
   }
 
   function renderPerks(){
@@ -167,7 +147,6 @@
 
     const body = el("perkBody");
     if (!body) return;
-
     body.innerHTML = "";
 
     for (const p of PERKS){
@@ -177,7 +156,7 @@
       if (p.maxTier <= 0){
         tierCell = `<span class="muted">N/A</span>`;
       } else {
-        const cur = tiers[p.name]; // null or number
+        const cur = tiers[p.name];
         const btns = [];
         btns.push(`<span class="tierBtn ${cur===null ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="">t0</span>`);
         for (let t=1; t<=p.maxTier; t++){
@@ -199,12 +178,9 @@
 
   function renderLog(){
     const log = loadJson(LS_LOG, []);
-    const lc = el("logCount");
-    if (lc) lc.textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
-
+    if (el("logCount")) el("logCount").textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
     const body = el("logBody");
     if (!body) return;
-
     body.innerHTML = log.slice().reverse().map(e => `
       <tr>
         <td>${escapeHtml(e.time)}</td>
@@ -217,7 +193,6 @@
   function renderRolledImages(rolled){
     const out = el("rollOutput");
     if (!out) return;
-
     out.innerHTML = "";
 
     if (!rolled.length){
@@ -244,12 +219,7 @@
 
       const meta = document.createElement("div");
       meta.className = "rollMeta";
-      meta.innerHTML = `
-        <div>
-          <b>${escapeHtml(r.perk.name)}</b><br>
-          <span>${escapeHtml(r.tier)}</span>
-        </div>
-      `;
+      meta.innerHTML = `<div><b>${escapeHtml(r.perk.name)}</b><br><span>${escapeHtml(r.tier)}</span></div>`;
 
       card.appendChild(img);
       card.appendChild(meta);
@@ -257,9 +227,6 @@
     }
   }
 
-  // =========================
-  // COPY LAST ROLL AS ONE IMAGE
-  // =========================
   async function copyLastRollAsSingleImage(){
     if (!navigator.clipboard || !window.ClipboardItem){
       toast("Clipboard image copy not supported (use Chrome/Edge).");
@@ -271,7 +238,6 @@
     }
 
     try{
-      // Load all rolled images at original resolution
       const bitmaps = [];
       for (const r of lastRolled){
         const res = await fetch(r.img, { cache: "no-store" });
@@ -282,15 +248,11 @@
       }
 
       const n = bitmaps.length;
+      const cols = (n <= 2) ? n : 2;
+      const rows = (n <= 2) ? 1 : Math.ceil(n / 2);
 
-      // Layout: 1 => 1x1, 2 => 2x1, 3-4 => 2x2
-      const cols = (n === 1) ? 1 : (n === 2 ? 2 : 2);
-      const rows = (n <= 2) ? 1 : 2;
+      const gap = 24, pad = 24;
 
-      const gap = 24;
-      const pad = 24;
-
-      // Use the max width/height as cell size so no image is cropped.
       const cellW = Math.max(...bitmaps.map(b => b.width));
       const cellH = Math.max(...bitmaps.map(b => b.height));
 
@@ -301,14 +263,13 @@
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
-      // Draw each image centered in its cell. Never scale UP; only scale DOWN if needed.
       for (let i=0; i<n; i++){
         const bmp = bitmaps[i];
-        const r = Math.floor(i / cols);
-        const c = i % cols;
+        const rr = Math.floor(i / cols);
+        const cc = i % cols;
 
-        const x0 = pad + c*(cellW + gap);
-        const y0 = pad + r*(cellH + gap);
+        const x0 = pad + cc*(cellW + gap);
+        const y0 = pad + rr*(cellH + gap);
 
         const scale = Math.min(1, cellW / bmp.width, cellH / bmp.height);
         const dw = Math.floor(bmp.width * scale);
@@ -331,32 +292,8 @@
     }
   }
 
-  // Optional: keep Copy roll (text) working too, if your HTML still has it
-  async function copyRollText(){
-    if (!navigator.clipboard){
-      toast("Clipboard not available.");
-      return;
-    }
-    if (!lastRolled.length){
-      toast("Nothing rolled yet.");
-      return;
-    }
-    const lines = lastRolled.map((r, i) => `${i+1}) ${r.perk.name} (${r.tier})`);
-    const text = `Rolled perks:\n` + lines.join("\n");
-    try{
-      await navigator.clipboard.writeText(text);
-      toast("Text copied! Paste into Discord.");
-    }catch{
-      toast("Could not copy text.");
-    }
-  }
-
-  // =========================
-  // ROLLING
-  // =========================
   function rollN(nWanted){
     const tiers = normalizeTiers();
-
     let tempPool = PERKS.slice();
     const n = Math.min(nWanted, tempPool.length);
 
@@ -371,7 +308,6 @@
       const tier = tierLabel(picked, tiers);
 
       rolled.push({ perk: picked, img: imgPath, tier });
-
       log.push({ time: nowString(), perk: picked.name, tierAtRoll: tier });
     }
 
@@ -394,48 +330,38 @@
     toast("Log cleared.");
   }
 
-  // =========================
-  // EVENTS / INIT
-  // =========================
   function wire(){
-    // Tier click handler (delegated)
-    const perkBody = el("perkBody");
-    if (perkBody){
-      perkBody.addEventListener("click", (e) => {
-        const btn = e.target.closest(".tierBtn");
-        if (!btn) return;
+    // Tier click delegation
+    el("perkBody")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".tierBtn");
+      if (!btn) return;
 
-        const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
-        const tierStr = btn.getAttribute("data-tier"); // "" => t0
+      const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
+      const tierStr = btn.getAttribute("data-tier"); // "" => t0
 
-        const perk = PERKS.find(p => p.name === perkName);
-        if (!perk || perk.maxTier <= 0) return;
+      const perk = PERKS.find(p => p.name === perkName);
+      if (!perk || perk.maxTier <= 0) return;
 
-        const tiers = normalizeTiers();
-        tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
-        saveJson(LS_TIERS, tiers);
-        renderPerks();
-      });
-    }
+      const tiers = normalizeTiers();
+      tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
+      saveJson(LS_TIERS, tiers);
+      renderPerks();
+    });
 
     el("roll1")?.addEventListener("click", () => rollN(1));
     el("roll2")?.addEventListener("click", () => rollN(2));
     el("roll3")?.addEventListener("click", () => rollN(3));
     el("roll4")?.addEventListener("click", () => rollN(4));
 
-    // IMPORTANT:
-    // Make sure your HTML has a button with id="copyImageBtn"
+    // IMPORTANT: make sure your HTML has a button with id="copyImageBtn"
     el("copyImageBtn")?.addEventListener("click", copyLastRollAsSingleImage);
-
-    // If you still have text button:
-    el("copyTextBtn")?.addEventListener("click", copyRollText);
 
     el("resetTiersBtn")?.addEventListener("click", resetTiers);
     el("clearLogBtn")?.addEventListener("click", clearLog);
     el("search")?.addEventListener("input", renderPerks);
   }
 
-  // Init render
+  // Init
   renderStats();
   renderPerks();
   renderLog();
