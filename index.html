@@ -579,7 +579,7 @@
         ctx.drawImage(bmp, dx, dy, dw, dh);
       }
 
-const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.75));
 await navigator.clipboard.write([ new ClipboardItem({ "image/jpeg": outBlob }) ]);
       toast("Roll image copied! Paste once into Discord.");
     }catch (e){
@@ -637,4 +637,5 @@ await navigator.clipboard.write([ new ClipboardItem({ "image/jpeg": outBlob }) ]
 </script>
 </body>
 </html>
+
 
