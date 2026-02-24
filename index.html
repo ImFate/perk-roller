@@ -1,4 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Perk Roller</title>
+  <link rel="icon" type="image/png" href="favicon.png?v=999">
+
+  <style>
+    :root{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      --bg0:#07090c; --bg1:#0b0f14;
+      --panel: rgba(255,255,255,.045);
+      --panel2: rgba(255,255,255,.03);
+      --border: rgba(255,255,255,.08);
+      --border2: rgba(255,255,255,.14);
+      --text:#e8eef7;
+      --muted: rgba(232,238,247,.72);
+      --y1:#ffff00; --y2:#e6e600;
+      --r:16px;
+    }
+
+    body{
+      margin:0; color:var(--text);
+      background:
+        radial-gradient(1000px 600px at 50% 10%, rgba(255,255,255,.06), transparent 60%),
+        radial-gradient(900px 600px at 50% 100%, rgba(0,0,0,.55), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+    }
+    .topbar{
+      padding:14px 18px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.18);
+    }
+    .wrap{ max-width:1200px; margin:0 auto; padding:18px; }
+    h1{ margin:0; font-size:20px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 2fr 1fr;
+      gap:14px;
+      margin-top:14px;
+      align-items:start;
+    }
+    .card{
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      border:1px solid var(--border);
+      border-radius: var(--r);
+      padding:14px;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex:1; }
+
+    input{
+      width:100%;
+      box-sizing:border-box;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.12));
+      color: var(--text);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px 12px;
+      outline:none;
+      font-family: inherit;
+    }
+
+    button{
+      cursor:pointer;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18));
+      color: var(--text);
+      padding:12px;
+      border-radius:14px;
+      font-weight:900;
+      box-shadow:none;
+    }
+    button:hover{ border-color: var(--border2); }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .primary{
+      background: linear-gradient(180deg, var(--y1), var(--y2));
+      border-color: rgba(0,0,0,.35);
+      color:#1a1a00;
+      box-shadow:none;
+    }
+    .danger{
+      background: linear-gradient(180deg, #2a313d, #1a212b);
+    }
+    .muted{ color:var(--muted); font-size:12px; }
+
+    .list{
+      margin-top:10px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      overflow:auto;
+      background: rgba(0,0,0,.18);
+    }
+    table{ width:100%; border-collapse:collapse; }
+    th, td{
+      padding:10px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:13px;
+      vertical-align:top;
+    }
+    th{
+      position:sticky;
+      top:0;
+      background:#0c1016;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      font-size:12px;
+    }
+
+    .tiers{ display:flex; gap:6px; flex-wrap:wrap; }
+    .tierBtn{
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      font-weight:900;
+      user-select:none;
+      color: var(--text);
+    }
+    .tierBtn.active{
+      background: linear-gradient(180deg, var(--y1), var(--y2));
+      color:#1a1a00;
+      border-color: rgba(0,0,0,.35);
+    }
+
+    .rollHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+
+    .rollGrid{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:12px;
+    }
+    .rollCard{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      overflow:hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.28));
+    }
+    .rollCard img{
+      width:100%;
+      height:auto;
+      display:block;
+      background: rgba(0,0,0,.35);
+    }
+    .rollMeta{
+      padding:10px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+    .rollMeta b{ font-size:13px; }
+    .rollMeta span{ font-size:12px; color:var(--muted); }
+
+    .imgMissing{
+      padding:14px;
+      color: rgba(232,238,247,.85);
+      font-weight:900;
+      font-size:12px;
+    }
+    .imgMissing code{ color:#fff; }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.75);
+      border: 1px solid rgba(255,255,255,.16);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 12px;
+      display: none;
+      z-index: 9999;
+      max-width: calc(100vw - 24px);
+      text-align: center;
+    }
+
+    @media (max-width:980px){
+      .grid{ grid-template-columns:1fr; }
+      .rollGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width:520px){
+      .rollGrid{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="wrap"><h1>Perk Roller</h1></div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+
+      <div class="card">
+        <div class="row">
+          <button class="primary" id="roll1">Roll 1</button>
+          <button class="primary" id="roll2">Roll 2</button>
+          <button class="primary" id="roll3">Roll 3</button>
+          <button class="primary" id="roll4">Roll 4</button>
+        </div>
+
+        <div class="rollHeader">
+          <div class="muted">Rolled perks (images)</div>
+          <div class="row" style="flex:0 0 auto; gap:8px;">
+            <button class="danger" id="copyImageBtn" style="flex:0 0 auto;">Copy roll (image)</button>
+            <button class="danger" id="copyTextBtn" style="flex:0 0 auto;">Copy roll (text)</button>
+          </div>
+        </div>
+
+        <div id="rollOutput" class="rollGrid"></div>
+
+        <div class="muted" style="margin-top:10px;" id="statsBox">Perks: —</div>
+
+        <div class="row" style="margin-top:12px;">
+          <input id="search" placeholder="Search perks..." />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="danger" id="resetTiersBtn">Reset tiers</button>
+          <button class="danger" id="clearLogBtn">Clear log</button>
+        </div>
+
+        <div class="list" style="max-height:520px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Perk</th>
+                <th style="width:70px;">Max</th>
+                <th style="width:80px;">Weight</th>
+                <th style="width:320px;">Tier</th>
+              </tr>
+            </thead>
+            <tbody id="perkBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <b>Log</b>
+          <div class="muted" style="text-align:right;" id="logCount">0 entries</div>
+        </div>
+
+        <div class="muted" style="margin-top:6px;">
+          Tiers are manual. Rolling does not change tiers.
+        </div>
+
+        <div class="list" style="max-height:720px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:160px;">Time</th>
+                <th>Perk</th>
+                <th style="width:120px;">Tier</th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
 <script>
+  // ===== LOCKED PERK LIST =====
   const PERKS = [
     { name: "Blackbird", maxTier: 0, weight: 1 },
     { name: "Blueshell", maxTier: 0, weight: 1 },
@@ -39,12 +323,11 @@
     { name: "Unlucky Charm", maxTier: 0, weight: 1 },
   ];
 
-  const LS_TIERS = "perkroller_locked_tiers_v5";
-  const LS_LOG   = "perkroller_locked_log_v5";
+  const LS_TIERS = "perkroller_locked_tiers_v6";
+  const LS_LOG   = "perkroller_locked_log_v6";
 
   const el = (id) => document.getElementById(id);
   const nowString = () => new Date().toLocaleString();
-
   let lastRolled = [];
 
   function toast(msg){
@@ -66,16 +349,10 @@
   }
 
   function loadJson(key, fallback){
-    try{
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    }catch{
-      return fallback;
-    }
+    try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+    catch{ return fallback; }
   }
-  function saveJson(key, value){
-    localStorage.setItem(key, JSON.stringify(value));
-  }
+  function saveJson(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
 
   function normalizeTiers(){
     const tiers = loadJson(LS_TIERS, {});
@@ -103,18 +380,13 @@
   function weightedPick(items){
     const total = items.reduce((s,it)=>s+it.weight,0);
     let r = Math.random() * total;
-    for (const it of items){
-      r -= it.weight;
-      if (r <= 0) return it;
-    }
+    for (const it of items){ r -= it.weight; if (r <= 0) return it; }
     return items[items.length - 1];
   }
 
-  // your naming: momentummultiplier_t0.png
+  // your naming: images/<slug>_t0.png
   function slugifyForYourFiles(name){
-    return name
-      .toLowerCase()
-      .normalize("NFKD")
+    return name.toLowerCase().normalize("NFKD")
       .replace(/[\u2019\u2018]/g, "'")
       .replace(/'/g, "")
       .replace(/[^a-z0-9]/g, "");
@@ -137,16 +409,13 @@
   }
 
   function renderStats(){
-    const stats = el("statsBox");
-    if (stats) stats.textContent = `Perks: ${PERKS.length}`;
+    el("statsBox").textContent = `Perks: ${PERKS.length}`;
   }
 
   function renderPerks(){
     const tiers = normalizeTiers();
-    const q = (el("search")?.value || "").trim().toLowerCase();
-
+    const q = (el("search").value || "").trim().toLowerCase();
     const body = el("perkBody");
-    if (!body) return;
     body.innerHTML = "";
 
     for (const p of PERKS){
@@ -156,7 +425,7 @@
       if (p.maxTier <= 0){
         tierCell = `<span class="muted">N/A</span>`;
       } else {
-        const cur = tiers[p.name];
+        const cur = tiers[p.name]; // null or number
         const btns = [];
         btns.push(`<span class="tierBtn ${cur===null ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="">t0</span>`);
         for (let t=1; t<=p.maxTier; t++){
@@ -178,10 +447,8 @@
 
   function renderLog(){
     const log = loadJson(LS_LOG, []);
-    if (el("logCount")) el("logCount").textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
-    const body = el("logBody");
-    if (!body) return;
-    body.innerHTML = log.slice().reverse().map(e => `
+    el("logCount").textContent = `${log.length} entr${log.length===1?"y":"ies"}`;
+    el("logBody").innerHTML = log.slice().reverse().map(e => `
       <tr>
         <td>${escapeHtml(e.time)}</td>
         <td><b>${escapeHtml(e.perk)}</b></td>
@@ -192,9 +459,7 @@
 
   function renderRolledImages(rolled){
     const out = el("rollOutput");
-    if (!out) return;
     out.innerHTML = "";
-
     if (!rolled.length){
       out.innerHTML = `<div class="muted">Click Roll 1 / 2 / 3 / 4</div>`;
       return;
@@ -227,9 +492,43 @@
     }
   }
 
+  function rollN(nWanted){
+    const tiers = normalizeTiers();
+    let tempPool = PERKS.slice();              // no duplicates in a roll
+    const n = Math.min(nWanted, tempPool.length);
+
+    const rolled = [];
+    const log = loadJson(LS_LOG, []);
+
+    for (let i=0; i<n; i++){
+      const picked = weightedPick(tempPool);
+      tempPool = tempPool.filter(p => p !== picked);
+
+      const imgPath = imagePathFor(picked, tiers);
+      const tier = tierLabel(picked, tiers);
+
+      rolled.push({ perk: picked, img: imgPath, tier });
+      log.push({ time: nowString(), perk: picked.name, tierAtRoll: tier });
+    }
+
+    saveJson(LS_LOG, log);
+    lastRolled = rolled.slice();
+    renderRolledImages(rolled);
+    renderLog();
+  }
+
+  async function copyRollText(){
+    if (!navigator.clipboard){ toast("Clipboard not available."); return; }
+    if (!lastRolled.length){ toast("Nothing rolled yet."); return; }
+    const lines = lastRolled.map((r, i) => `${i+1}) ${r.perk.name} (${r.tier})`);
+    const text = `Rolled perks:\n` + lines.join("\n");
+    await navigator.clipboard.writeText(text);
+    toast("Text copied! Paste into Discord.");
+  }
+
   async function copyLastRollAsSingleImage(){
     if (!navigator.clipboard || !window.ClipboardItem){
-      toast("Clipboard image copy not supported (use Chrome/Edge).");
+      toast("Clipboard image copy requires Chrome/Edge.");
       return;
     }
     if (!lastRolled.length){
@@ -250,18 +549,17 @@
       const n = bitmaps.length;
       const cols = (n <= 2) ? n : 2;
       const rows = (n <= 2) ? 1 : Math.ceil(n / 2);
-
       const gap = 24, pad = 24;
 
       const cellW = Math.max(...bitmaps.map(b => b.width));
       const cellH = Math.max(...bitmaps.map(b => b.height));
 
       const canvas = document.createElement("canvas");
-      canvas.width = pad*2 + cols*cellW + (cols-1)*gap;
+      canvas.width  = pad*2 + cols*cellW + (cols-1)*gap;
       canvas.height = pad*2 + rows*cellH + (rows-1)*gap;
 
       const ctx = canvas.getContext("2d");
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let i=0; i<n; i++){
         const bmp = bitmaps[i];
@@ -271,7 +569,7 @@
         const x0 = pad + cc*(cellW + gap);
         const y0 = pad + rr*(cellH + gap);
 
-        const scale = Math.min(1, cellW / bmp.width, cellH / bmp.height);
+        const scale = Math.min(1, cellW / bmp.width, cellH / bmp.height); // never upscale
         const dw = Math.floor(bmp.width * scale);
         const dh = Math.floor(bmp.height * scale);
 
@@ -282,40 +580,12 @@
       }
 
       const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!outBlob) throw new Error("toBlob failed");
-
       await navigator.clipboard.write([ new ClipboardItem({ "image/png": outBlob }) ]);
       toast("Roll image copied! Paste once into Discord.");
-    }catch(err){
-      console.error(err);
-      toast("Could not copy roll image (try Chrome/Edge).");
+    }catch (e){
+      console.error(e);
+      toast("Copy failed (check missing images / try Chrome/Edge).");
     }
-  }
-
-  function rollN(nWanted){
-    const tiers = normalizeTiers();
-    let tempPool = PERKS.slice();
-    const n = Math.min(nWanted, tempPool.length);
-
-    const rolled = [];
-    const log = loadJson(LS_LOG, []);
-
-    for (let i=0; i<n; i++){
-      const picked = weightedPick(tempPool);
-      tempPool = tempPool.filter(p => p !== picked);
-
-      const imgPath = imagePathFor(picked, tiers);
-      const tier = tierLabel(picked, tiers);
-
-      rolled.push({ perk: picked, img: imgPath, tier });
-      log.push({ time: nowString(), perk: picked.name, tierAtRoll: tier });
-    }
-
-    saveJson(LS_LOG, log);
-
-    lastRolled = rolled.slice();
-    renderRolledImages(rolled);
-    renderLog();
   }
 
   function resetTiers(){
@@ -330,41 +600,40 @@
     toast("Log cleared.");
   }
 
-  function wire(){
-    // Tier click delegation
-    el("perkBody")?.addEventListener("click", (e) => {
-      const btn = e.target.closest(".tierBtn");
-      if (!btn) return;
+  // Tier click (event delegation)
+  el("perkBody").addEventListener("click", (e) => {
+    const btn = e.target.closest(".tierBtn");
+    if (!btn) return;
 
-      const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
-      const tierStr = btn.getAttribute("data-tier"); // "" => t0
+    const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
+    const tierStr = btn.getAttribute("data-tier"); // "" => t0
+    const perk = PERKS.find(p => p.name === perkName);
+    if (!perk || perk.maxTier <= 0) return;
 
-      const perk = PERKS.find(p => p.name === perkName);
-      if (!perk || perk.maxTier <= 0) return;
+    const tiers = normalizeTiers();
+    tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
+    saveJson(LS_TIERS, tiers);
+    renderPerks();
+  });
 
-      const tiers = normalizeTiers();
-      tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
-      saveJson(LS_TIERS, tiers);
-      renderPerks();
-    });
+  // Wire buttons
+  el("roll1").addEventListener("click", () => rollN(1));
+  el("roll2").addEventListener("click", () => rollN(2));
+  el("roll3").addEventListener("click", () => rollN(3));
+  el("roll4").addEventListener("click", () => rollN(4));
 
-    el("roll1")?.addEventListener("click", () => rollN(1));
-    el("roll2")?.addEventListener("click", () => rollN(2));
-    el("roll3")?.addEventListener("click", () => rollN(3));
-    el("roll4")?.addEventListener("click", () => rollN(4));
+  el("copyImageBtn").addEventListener("click", copyLastRollAsSingleImage);
+  el("copyTextBtn").addEventListener("click", copyRollText);
 
-    // IMPORTANT: make sure your HTML has a button with id="copyImageBtn"
-    el("copyImageBtn")?.addEventListener("click", copyLastRollAsSingleImage);
-
-    el("resetTiersBtn")?.addEventListener("click", resetTiers);
-    el("clearLogBtn")?.addEventListener("click", clearLog);
-    el("search")?.addEventListener("input", renderPerks);
-  }
+  el("resetTiersBtn").addEventListener("click", resetTiers);
+  el("clearLogBtn").addEventListener("click", clearLog);
+  el("search").addEventListener("input", renderPerks);
 
   // Init
   renderStats();
   renderPerks();
   renderLog();
   renderRolledImages([]);
-  wire();
 </script>
+</body>
+</html>
