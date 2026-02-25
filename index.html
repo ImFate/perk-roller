@@ -219,7 +219,7 @@
         <div class="rollHeader">
           <div class="muted">Rolled perks (images)</div>
           <div class="row" style="flex:0 0 auto; gap:8px;">
-            <button class="danger" id="copyImageBtn" style="flex:0 0 auto;">Copy roll (image)</button>
+            <button class="danger" id="downloadRollBtn" style="flex:0 0 auto;">Download roll (image)</button>
             <button class="danger" id="copyTextBtn" style="flex:0 0 auto;">Copy roll (text)</button>
           </div>
         </div>
@@ -323,8 +323,8 @@
     { name: "Unlucky Charm", maxTier: 0, weight: 1 },
   ];
 
-  const LS_TIERS = "perkroller_locked_tiers_v6";
-  const LS_LOG   = "perkroller_locked_log_v6";
+  const LS_TIERS = "perkroller_locked_tiers_v7";
+  const LS_LOG   = "perkroller_locked_log_v7";
 
   const el = (id) => document.getElementById(id);
   const nowString = () => new Date().toLocaleString();
@@ -526,40 +526,27 @@
     toast("Text copied! Paste into Discord.");
   }
 
-async function copyLastRollAsSingleImage(){
-  // Must be a direct click from user (don’t call from timers)
-  if (!navigator.clipboard || !window.ClipboardItem){
-    toast("Clipboard image copy requires Chrome/Edge.");
-    return;
-  }
-  if (!lastRolled.length){
-    toast("Nothing rolled yet.");
-    return;
-  }
+  // Build a collage from the displayed images (no extra fetch), then download it.
+  async function downloadLastRollAsImage(){
+    if (!lastRolled.length){
+      toast("Nothing rolled yet.");
+      return;
+    }
 
-  // If the tab isn't focused, Chrome blocks clipboard writes.
-  if (!document.hasFocus()){
-    toast("Click the page once, then click Copy again.");
-    return;
-  }
-
-  try{
-    // Grab the images currently displayed in rollOutput
+    // Grab images currently displayed
     const imgs = Array.from(document.querySelectorAll("#rollOutput img"))
       .filter(im => im.complete && im.naturalWidth > 0);
 
     if (!imgs.length){
-      toast("No rendered images to copy yet.");
+      toast("No rendered images to download yet.");
       return;
     }
 
-    // Layout: 1 => 1x1, 2 => 2x1, 3-4 => 2x2
     const n = imgs.length;
     const cols = (n <= 2) ? n : 2;
     const rows = (n <= 2) ? 1 : Math.ceil(n / 2);
     const gap = 24, pad = 24;
 
-    // Use each image's natural resolution
     const cellW = Math.max(...imgs.map(im => im.naturalWidth));
     const cellH = Math.max(...imgs.map(im => im.naturalHeight));
 
@@ -568,7 +555,7 @@ async function copyLastRollAsSingleImage(){
     canvas.height = pad*2 + rows*cellH + (rows-1)*gap;
 
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let i=0; i<n; i++){
       const im = imgs[i];
@@ -578,7 +565,7 @@ async function copyLastRollAsSingleImage(){
       const x0 = pad + cc*(cellW + gap);
       const y0 = pad + rr*(cellH + gap);
 
-      // Never upscale; only downscale to fit if needed
+      // Never upscale, only downscale to fit cell
       const scale = Math.min(1, cellW / im.naturalWidth, cellH / im.naturalHeight);
       const dw = Math.floor(im.naturalWidth * scale);
       const dh = Math.floor(im.naturalHeight * scale);
@@ -589,29 +576,35 @@ async function copyLastRollAsSingleImage(){
       ctx.drawImage(im, dx, dy, dw, dh);
     }
 
-    // Use JPEG to reduce size and also faster encode
-    const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
-    if (!outBlob){
-      toast("Image export failed.");
+    // JPEG makes files MUCH smaller for Discord
+    const quality = 0.82; // lower = smaller; try 0.75 if needed
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob){
+      toast("Export failed.");
       return;
     }
 
-    await navigator.clipboard.write([ new ClipboardItem({ "image/jpeg": outBlob }) ]);
-    toast("Roll image copied! Paste once into Discord.");
-  }catch(e){
-    console.error(e);
-    toast("Copy failed (Chrome blocked it). Try clicking the page first.");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.href = url;
+    a.download = `perk_roll_${stamp}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2500);
+
+    toast("Downloaded! Upload/drag into Discord.");
   }
-}
 
   function resetTiers(){
-    saveJson(LS_TIERS, {});
+    localStorage.setItem(LS_TIERS, JSON.stringify({}));
     renderPerks();
     toast("Tiers reset.");
   }
 
   function clearLog(){
-    saveJson(LS_LOG, []);
+    localStorage.setItem(LS_LOG, JSON.stringify([]));
     renderLog();
     toast("Log cleared.");
   }
@@ -638,7 +631,7 @@ async function copyLastRollAsSingleImage(){
   el("roll3").addEventListener("click", () => rollN(3));
   el("roll4").addEventListener("click", () => rollN(4));
 
-  el("copyImageBtn").addEventListener("click", copyLastRollAsSingleImage);
+  el("downloadRollBtn").addEventListener("click", downloadLastRollAsImage);
   el("copyTextBtn").addEventListener("click", copyRollText);
 
   el("resetTiersBtn").addEventListener("click", resetTiers);
@@ -653,7 +646,3 @@ async function copyLastRollAsSingleImage(){
 </script>
 </body>
 </html>
-
-
-
-
