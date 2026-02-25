@@ -125,6 +125,13 @@
       color:#1a1a00;
       border-color: rgba(0,0,0,.35);
     }
+    .tierBtn.max{
+      border-style: dashed;
+    }
+
+    .perkInactive td{
+      opacity: .55;
+    }
 
     .rollHeader{
       display:flex;
@@ -244,7 +251,7 @@
                 <th>Perk</th>
                 <th style="width:70px;">Max</th>
                 <th style="width:80px;">Weight</th>
-                <th style="width:320px;">Tier</th>
+                <th style="width:360px;">Tier / MAX</th>
               </tr>
             </thead>
             <tbody id="perkBody"></tbody>
@@ -259,7 +266,7 @@
         </div>
 
         <div class="muted" style="margin-top:6px;">
-          Tiers are manual. Rolling does not change tiers.
+          Tiers are manual. Rolling does not change tiers. MAX makes a perk unrollable.
         </div>
 
         <div class="list" style="max-height:720px;">
@@ -268,7 +275,7 @@
               <tr>
                 <th style="width:160px;">Time</th>
                 <th>Perk</th>
-                <th style="width:120px;">Tier</th>
+                <th style="width:140px;">Tier</th>
               </tr>
             </thead>
             <tbody id="logBody"></tbody>
@@ -323,12 +330,16 @@
     { name: "Unlucky Charm", maxTier: 0, weight: 1 },
   ];
 
-  const LS_TIERS = "perkroller_locked_tiers_v7";
-  const LS_LOG   = "perkroller_locked_log_v7";
+  const LS_TIERS = "perkroller_locked_tiers_v8";
+  const LS_LOG   = "perkroller_locked_log_v8";
 
   const el = (id) => document.getElementById(id);
   const nowString = () => new Date().toLocaleString();
   let lastRolled = [];
+
+  // "MAX" means unrollable. We store MAX as a special tier state.
+  // For EVERY perk (even maxTier=0), MAX state is tier = maxTier + 1.
+  function maxStateFor(perk){ return perk.maxTier + 1; }
 
   function toast(msg){
     const t = el("toast");
@@ -354,25 +365,32 @@
   }
   function saveJson(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
 
+  // tiers object will store:
+  // null => t0 (none)
+  // 1..maxTier => actual tiers
+  // maxTier+1 => MAX (inactive/unrollable)
   function normalizeTiers(){
     const tiers = loadJson(LS_TIERS, {});
     const names = new Set(PERKS.map(p => p.name));
 
     for (const p of PERKS){
-      if (p.maxTier > 0){
-        if (!(p.name in tiers)) tiers[p.name] = null;
-        const v = tiers[p.name];
-        if (typeof v === "number"){
-          if (v < 1) tiers[p.name] = null;
-          if (v > p.maxTier) tiers[p.name] = p.maxTier;
-        }
-      } else {
-        if (p.name in tiers) delete tiers[p.name];
+      if (!(p.name in tiers)) tiers[p.name] = null;
+
+      const v = tiers[p.name];
+      const maxState = maxStateFor(p);
+
+      if (typeof v === "number"){
+        if (v < 1) tiers[p.name] = null;
+        if (v > maxState) tiers[p.name] = maxState;
+      } else if (v !== null) {
+        tiers[p.name] = null;
       }
     }
+
     for (const k of Object.keys(tiers)){
       if (!names.has(k)) delete tiers[k];
     }
+
     saveJson(LS_TIERS, tiers);
     return tiers;
   }
@@ -394,18 +412,27 @@
 
   function imagePathFor(perk, tiers){
     const slug = slugifyForYourFiles(perk.name);
+
+    // If a perk is MAX (inactive), show its MAX tier image if you have it.
+    // If you don't have MAX images, it will show missing image box, which is OK.
+    const cur = (tiers[perk.name] ?? null);
     let t = 0;
-    if (perk.maxTier > 0){
-      const cur = (tiers[perk.name] ?? null);
-      t = (cur === null) ? 0 : Number(cur);
-    }
+    if (cur === null) t = 0;
+    else t = Number(cur);
+
     return `images/${slug}_t${t}.png`;
   }
 
   function tierLabel(perk, tiers){
-    if (perk.maxTier <= 0) return "t0";
     const cur = (tiers[perk.name] ?? null);
-    return (cur === null) ? "t0" : `t${cur}`;
+    if (cur === null) return "t0";
+    const maxState = maxStateFor(perk);
+    return (cur === maxState) ? "MAX" : `t${cur}`;
+  }
+
+  function isInactive(perk, tiers){
+    const cur = (tiers[perk.name] ?? null);
+    return cur === maxStateFor(perk);
   }
 
   function renderStats(){
@@ -421,25 +448,30 @@
     for (const p of PERKS){
       if (q && !p.name.toLowerCase().includes(q)) continue;
 
-      let tierCell = "";
-      if (p.maxTier <= 0){
-        tierCell = `<span class="muted">N/A</span>`;
-      } else {
-        const cur = tiers[p.name]; // null or number
-        const btns = [];
-        btns.push(`<span class="tierBtn ${cur===null ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="">t0</span>`);
-        for (let t=1; t<=p.maxTier; t++){
-          btns.push(`<span class="tierBtn ${cur===t ? "active" : ""}" data-perk="${encodeURIComponent(p.name)}" data-tier="${t}">t${t}</span>`);
-        }
-        tierCell = `<div class="tiers">${btns.join("")}</div>`;
+      const cur = tiers[p.name]; // null or number
+      const maxState = maxStateFor(p);
+
+      // Build tier buttons:
+      // Always: t0, then t1..tMaxTier (if any), then MAX
+      const btns = [];
+      btns.push(`<span class="tierBtn ${cur===null ? "active" : ""}"
+        data-perk="${encodeURIComponent(p.name)}" data-tier="">t0</span>`);
+
+      for (let t=1; t<=p.maxTier; t++){
+        btns.push(`<span class="tierBtn ${cur===t ? "active" : ""}"
+          data-perk="${encodeURIComponent(p.name)}" data-tier="${t}">t${t}</span>`);
       }
 
+      btns.push(`<span class="tierBtn max ${cur===maxState ? "active" : ""}"
+        data-perk="${encodeURIComponent(p.name)}" data-tier="${maxState}">MAX</span>`);
+
       const tr = document.createElement("tr");
+      if (isInactive(p, tiers)) tr.className = "perkInactive";
       tr.innerHTML = `
         <td><b>${escapeHtml(p.name)}</b></td>
         <td>${p.maxTier}</td>
         <td>${p.weight}</td>
-        <td>${tierCell}</td>
+        <td><div class="tiers">${btns.join("")}</div></td>
       `;
       body.appendChild(tr);
     }
@@ -494,7 +526,10 @@
 
   function rollN(nWanted){
     const tiers = normalizeTiers();
-    let tempPool = PERKS.slice();              // no duplicates in a roll
+
+    // Filter out MAX (inactive) perks from rollable pool
+    let tempPool = PERKS.filter(p => !isInactive(p, tiers));
+
     const n = Math.min(nWanted, tempPool.length);
 
     const rolled = [];
@@ -502,9 +537,12 @@
 
     for (let i=0; i<n; i++){
       const picked = weightedPick(tempPool);
-      tempPool = tempPool.filter(p => p !== picked);
+      tempPool = tempPool.filter(p => p !== picked); // no duplicates in same roll
 
       const imgPath = imagePathFor(picked, tiers);
+
+      // IMPORTANT: rolled tier label reflects current tier state.
+      // If you ever roll a perk and immediately set MAX, that's manual.
       const tier = tierLabel(picked, tiers);
 
       rolled.push({ perk: picked, img: imgPath, tier });
@@ -533,7 +571,6 @@
       return;
     }
 
-    // Grab images currently displayed
     const imgs = Array.from(document.querySelectorAll("#rollOutput img"))
       .filter(im => im.complete && im.naturalWidth > 0);
 
@@ -565,7 +602,6 @@
       const x0 = pad + cc*(cellW + gap);
       const y0 = pad + rr*(cellH + gap);
 
-      // Never upscale, only downscale to fit cell
       const scale = Math.min(1, cellW / im.naturalWidth, cellH / im.naturalHeight);
       const dw = Math.floor(im.naturalWidth * scale);
       const dh = Math.floor(im.naturalHeight * scale);
@@ -576,8 +612,7 @@
       ctx.drawImage(im, dx, dy, dw, dh);
     }
 
-    // JPEG makes files MUCH smaller for Discord
-    const quality = 0.82; // lower = smaller; try 0.75 if needed
+    const quality = 0.82;
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
     if (!blob){
       toast("Export failed.");
@@ -598,13 +633,16 @@
   }
 
   function resetTiers(){
-    localStorage.setItem(LS_TIERS, JSON.stringify({}));
+    // Reset all perks to t0 (null). Keeps MAX off.
+    const tiers = {};
+    for (const p of PERKS) tiers[p.name] = null;
+    saveJson(LS_TIERS, tiers);
     renderPerks();
     toast("Tiers reset.");
   }
 
   function clearLog(){
-    localStorage.setItem(LS_LOG, JSON.stringify([]));
+    saveJson(LS_LOG, []);
     renderLog();
     toast("Log cleared.");
   }
@@ -616,8 +654,9 @@
 
     const perkName = decodeURIComponent(btn.getAttribute("data-perk") || "");
     const tierStr = btn.getAttribute("data-tier"); // "" => t0
+
     const perk = PERKS.find(p => p.name === perkName);
-    if (!perk || perk.maxTier <= 0) return;
+    if (!perk) return;
 
     const tiers = normalizeTiers();
     tiers[perkName] = (tierStr === "" ? null : Number(tierStr));
