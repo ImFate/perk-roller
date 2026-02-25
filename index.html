@@ -527,6 +527,7 @@
   }
 
   async function copyLastRollAsSingleImage(){
+    window.focus();
     if (!navigator.clipboard || !window.ClipboardItem){
       toast("Clipboard image copy requires Chrome/Edge.");
       return;
@@ -637,5 +638,6 @@ await navigator.clipboard.write([ new ClipboardItem({ "image/jpeg": outBlob }) ]
 </script>
 </body>
 </html>
+
 
 
